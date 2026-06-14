@@ -1,9 +1,9 @@
 /**
- * drive.ts — Google Drive "Bring Your Own Cloud" integration for Zoutty.
+ * drive.ts — Google Drive "Bring Your Own Cloud" integration for LMPLOG.
  *
  * Uses Google Identity Services (GIS) implicit flow to acquire a short-lived
  * OAuth access token scoped ONLY to the hidden Application Data folder
- * (drive.appdata). Zoutty can NEVER read any other file in the user's Drive.
+ * (drive.appdata). LMPLOG can NEVER read any other file in the user's Drive.
  *
  * All functions are purely client-side — no backend required.
  */
@@ -12,11 +12,11 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 // openid + email + profile ensures Google includes an id_token JWT in the
 // OAuth response, letting us read the user's email without any extra API call.
 const SCOPE = 'https://www.googleapis.com/auth/drive.appdata openid email profile';
-const BACKUP_FILENAME = 'zoutty_backup.json';
+const BACKUP_FILENAME = 'lmplog_backup.json';
 
-const TOKEN_KEY = 'zoutty_gdrive_token';
-const TOKEN_EXPIRY_KEY = 'zoutty_gdrive_token_expiry';
-const ACCOUNT_KEY = 'zoutty_gdrive_account';
+const TOKEN_KEY = 'lmplog_gdrive_token';
+const TOKEN_EXPIRY_KEY = 'lmplog_gdrive_token_expiry';
+const ACCOUNT_KEY = 'lmplog_gdrive_account';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -218,7 +218,7 @@ export async function uploadBackupToDrive(backupJson: string): Promise<void> {
     parents: existingId ? undefined : ['appDataFolder'],
   };
 
-  const boundary = 'zoutty_backup_boundary_' + Date.now();
+  const boundary = 'lmplog_backup_boundary_' + Date.now();
   const body = [
     `--${boundary}`,
     'Content-Type: application/json; charset=UTF-8',

@@ -40,20 +40,16 @@ import {
 import imageCompression from 'browser-image-compression';
 import { format } from 'date-fns';
 import { db } from './lib/db';
-import { callZoukAudioProcessor } from './lib/mcp';
-import { Session, AudioEntry, Language, StrictSummary, ExpandedInsights, SessionGroup, DanceGlossary, SessionMedia } from './types';
-import { DEFAULT_GLOSSARIES } from './lib/defaultGlossaries';
+import { Session, AudioEntry, Language, SessionGroup, SessionMedia, StrictSummary, ExpandedInsights, DanceGlossary } from './types';
 
-import { ZouttyIcon } from './components/ZouttyIcon';
+import { LMPLOGIcon } from './components/LMPLOGIcon';
 import { CustomSelect } from './components/CustomSelect';
 import { CustomCheckbox } from './components/CustomCheckbox';
 import { CustomSwitch } from './components/CustomSwitch';
 import { AutoGrowingTextarea } from './components/AutoGrowingTextarea';
-import { WelcomeModal } from './components/WelcomeModal';
-import Markdown from 'react-markdown';
 // Word export removed due to Google Docs converter compatibility issues
-import { useTranslation } from './i18n/TranslationContext';
-import { UI_LANGUAGE_NAMES } from './i18n';
+
+
 import {
   connectDriveAccount,
   uploadBackupToDrive,
@@ -188,25 +184,14 @@ function AppSettingsCollapsible({ label, icon, children }: { label: string; icon
   );
 }
 
-const getSessionDefaultTitle = (date: Date | number, lang: string) => {
+const getSessionDefaultTitle = (date: Date | number) => {
   const d = new Date(date);
-  if (lang === 'es') {
-    const days = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
-    const dayName = days[d.getDay()];
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = String(d.getFullYear()).slice(-2);
-    return `${dayName} ${day}/${month}/${year}`;
-  } else {
-    return format(d, "EEE dd/MM/yy");
-  }
+  return format(d, "EEE dd/MM/yy");
 };
 
 export default function App() {
-  const { t, uiLanguage, setUILanguage } = useTranslation();
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(
-    () => localStorage.getItem('zoutty_onboarding_completed') === 'true'
-  );
+  
+
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
@@ -273,16 +258,16 @@ export default function App() {
   } | null>(null);
   const [moveSessionModal, setMoveSessionModal] = useState<{ sessionId: string, currentGroupId?: string } | null>(null);
   const [sessionSortBy, setSessionSortBy] = useState<'date' | 'name' | 'created'>(
-    (localStorage.getItem('zoutty_session_sort_by') as any) || 'date'
+    (localStorage.getItem('lmplog_session_sort_by') as any) || 'date'
   );
   const [sessionSortOrder, setSessionSortOrder] = useState<'asc' | 'desc'>(
-    (localStorage.getItem('zoutty_session_sort_order') as any) || 'desc'
+    (localStorage.getItem('lmplog_session_sort_order') as any) || 'desc'
   );
   const [folderSortBy, setFolderSortBy] = useState<'date' | 'name' | 'created'>(
-    (localStorage.getItem('zoutty_folder_sort_by') as any) || 'date'
+    (localStorage.getItem('lmplog_folder_sort_by') as any) || 'date'
   );
   const [folderSortOrder, setFolderSortOrder] = useState<'asc' | 'desc'>(
-    (localStorage.getItem('zoutty_folder_sort_order') as any) || 'desc'
+    (localStorage.getItem('lmplog_folder_sort_order') as any) || 'desc'
   );
   const [importPreview, setImportPreview] = useState<any | null>(null);
   const [showImportCodeModal, setShowImportCodeModal] = useState(false);
@@ -338,7 +323,7 @@ export default function App() {
   }, []);
 
   const getSessionLastActivity = (session: Session) => {
-    const sessionAudios = Object.values(audioEntries).filter(e => e.sessionId === session.id);
+    const sessionAudios = (Object.values(audioEntries) as AudioEntry[]).filter(e => e.sessionId === session.id);
     if (sessionAudios.length === 0) return session.date;
     return Math.max(...sessionAudios.map(a => a.timestamp));
   };
@@ -398,8 +383,8 @@ export default function App() {
     }
     setSessionSortBy(nextField);
     setSessionSortOrder(nextOrder);
-    localStorage.setItem('zoutty_session_sort_by', nextField);
-    localStorage.setItem('zoutty_session_sort_order', nextOrder);
+    localStorage.setItem('lmplog_session_sort_by', nextField);
+    localStorage.setItem('lmplog_session_sort_order', nextOrder);
   };
 
   const handleFolderSortClick = (field: 'date' | 'name' | 'created') => {
@@ -413,8 +398,8 @@ export default function App() {
     }
     setFolderSortBy(nextField);
     setFolderSortOrder(nextOrder);
-    localStorage.setItem('zoutty_folder_sort_by', nextField);
-    localStorage.setItem('zoutty_folder_sort_order', nextOrder);
+    localStorage.setItem('lmplog_folder_sort_by', nextField);
+    localStorage.setItem('lmplog_folder_sort_order', nextOrder);
   };
 
 
@@ -433,35 +418,14 @@ export default function App() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Seed default/system glossaries if needed
-        const existingGlossaries = await db.getGlossaries();
-        const defaultIds = DEFAULT_GLOSSARIES.map(g => g.id);
-
-        // Clean up system glossaries that are no longer supported
-        for (const existing of existingGlossaries) {
-          if (existing.isSystem && !defaultIds.includes(existing.id)) {
-            await db.deleteGlossary(existing.id);
-          }
-        }
-
-        // Add or update current system glossaries
-        for (const defaultGlossary of DEFAULT_GLOSSARIES) {
-          const existing = existingGlossaries.find(g => g.id === defaultGlossary.id);
-          if (!existing || existing.isSystem) {
-            await db.saveGlossary(defaultGlossary);
-          }
-        }
-
         const loadedSessions = await db.getSessions();
         const loadedAudios = await db.getAudioEntries();
         const loadedGroups = await db.getGroups();
-        const loadedGlossaries = await db.getGlossaries();
 
         // Sort sessions by date descending
         loadedSessions.sort((a, b) => b.date - a.date);
         setSessions(loadedSessions);
         setGroups(loadedGroups);
-        setGlossaries(loadedGlossaries);
 
         // Convert audio entries array to record for easy lookup
         const audioRecord: Record<string, AudioEntry> = {};
@@ -469,7 +433,7 @@ export default function App() {
         setAudioEntries(audioRecord);
       } catch (err) {
         console.error("Failed to load IndexedDB", err);
-        showToast(t('toast.failedLoadData'), true);
+        showToast("Failed to load app data", true);
       }
     };
     loadData();
@@ -488,15 +452,15 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `zoutty-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `lmplog-backup-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast(t('toast.backupDownloaded'));
+      showToast("Backup downloaded successfully!");
     } catch (e) {
       console.error("Backup failed", e);
-      showToast(t('toast.failedBackup'), true);
+      showToast("Failed to create backup", true);
     } finally {
       hideSpinner();
     }
@@ -516,13 +480,13 @@ export default function App() {
       const text = await file.text();
       const backup = JSON.parse(text);
       await db.importDatabase(backup);
-      showToast(t('toast.restoreSuccess'));
+      showToast("Restore successful! Reloading application...");
       setTimeout(() => {
         window.location.reload();
       }, 1500);
     } catch (err) {
       console.error("Restore failed", err);
-      showToast(t('toast.failedRestore'), true);
+      showToast("Failed to restore backup (invalid file format)", true);
     } finally {
       hideSpinner();
     }
@@ -530,16 +494,16 @@ export default function App() {
 
   const handleResetApp = async () => {
     setShowResetConfirm(false);
-    showSpinner('Resetting Zoutty data...');
+    showSpinner('Resetting LMPLOG data...');
     try {
       await db.clearDatabase();
-      showToast(t('toast.resetSuccess'));
+      showToast("App reset successfully! Reloading...");
       setTimeout(() => {
         window.location.reload();
       }, 1500);
     } catch (err) {
       console.error("Reset failed", err);
-      showToast(t('toast.failedReset'), true);
+      showToast("Failed to reset LMPLOG data", true);
     } finally {
       hideSpinner();
     }
@@ -554,10 +518,10 @@ export default function App() {
       const account = getStoredDriveAccount();
       setDriveAccount(account);
       setDriveConnected(true);
-      showToast(t('toast.driveConnected'));
+      showToast("Google Drive connected!");
     } catch (err: any) {
       console.error('Drive connect failed:', err);
-      showToast(t('toast.driveConnectFailed'), true);
+      showToast("Failed to connect Google Drive. Please try again.", true);
     } finally {
       hideSpinner();
     }
@@ -572,7 +536,7 @@ export default function App() {
     setDriveAccount(null);
     setDriveConnected(false);
     setShowDriveDisconnectConfirm(false);
-    showToast(t('toast.driveDisconnected'));
+    showToast("Google Drive disconnected.");
   };
 
   const handleDriveBackup = async () => {
@@ -580,14 +544,14 @@ export default function App() {
     try {
       const backup = await db.exportDatabase();
       await uploadBackupToDrive(JSON.stringify(backup));
-      showToast(t('toast.driveBackupSuccess'));
+      showToast("Backup saved to Google Drive!");
     } catch (err: any) {
       console.error('Drive backup failed:', err);
       // Token may have expired — reset connection
       if (err.message?.includes('401')) {
         handleDisconnectDrive();
       }
-      showToast(t('toast.driveBackupFailed'), true);
+      showToast("Failed to back up to Google Drive.", true);
     } finally {
       hideSpinner();
     }
@@ -598,18 +562,18 @@ export default function App() {
     try {
       const backup = await downloadBackupFromDrive();
       if (!backup) {
-        showToast(t('toast.driveNoBackup'), true);
+        showToast("No backup found in your Google Drive.", true);
         return;
       }
       await db.importDatabase(backup);
-      showToast(t('toast.driveRestoreSuccess'));
+      showToast("Restore from Google Drive successful! Reloading...");
       setTimeout(() => window.location.reload(), 1500);
     } catch (err: any) {
       console.error('Drive restore failed:', err);
       if (err.message?.includes('401')) {
         handleDisconnectDrive();
       }
-      showToast(t('toast.driveRestoreFailed'), true);
+      showToast("Failed to restore from Google Drive.", true);
     } finally {
       hideSpinner();
     }
@@ -628,7 +592,7 @@ export default function App() {
         let changed = false;
 
         for (const session of needsMigration) {
-          const newTitle = getSessionDefaultTitle(session.date, uiLanguage);
+          const newTitle = getSessionDefaultTitle(session.date);
           const idx = updatedSessions.findIndex(s => s.id === session.id);
           if (idx !== -1) {
             updatedSessions[idx] = { ...updatedSessions[idx], title: newTitle };
@@ -699,7 +663,7 @@ export default function App() {
   const createSession = async () => {
     const newSession: Session = {
       id: crypto.randomUUID(),
-      title: getSessionDefaultTitle(Date.now(), uiLanguage),
+      title: getSessionDefaultTitle(Date.now()),
       subtitle: '',
       date: Date.now(),
       groupId: selectedGroupId || undefined,
@@ -750,7 +714,7 @@ export default function App() {
     } else {
       setAudioEntries(prev => ({ ...prev, [id]: data }));
     }
-    showToast(t('toast.actionUndone'));
+    showToast("Action undone");
   };
 
   const confirmDelete = async () => {
@@ -783,7 +747,7 @@ export default function App() {
         await db.deleteSession(id);
       }, 5000);
 
-      showToast(t('toast.sessionDeleted'), false, t('toast.undo'), () => handleUndo(id, type, sessionToDelete, sessionAudios, timeoutId));
+      showToast("Session deleted", false, "Undo", () => handleUndo(id, type, sessionToDelete, sessionAudios, timeoutId));
 
     } else {
       const audioToDelete = audioEntries[id];
@@ -799,19 +763,14 @@ export default function App() {
         await db.deleteAudioEntry(id);
       }, 5000);
 
-      showToast(t('toast.audioDeleted'), false, t('toast.undo'), () => handleUndo(id, type, audioToDelete, null, timeoutId));
+      showToast("Audio deleted", false, "Undo", () => handleUndo(id, type, audioToDelete, null, timeoutId));
     }
   };
 
   const requestDeleteSession = (id: string, title: string) => setDeleteModal({ id, type: 'session', title });
   const requestDeleteAudio = (id: string, title: string) => setDeleteModal({ id, type: 'audio', title });
 
-  const confirmReprocess = () => {
-    if (!reprocessModal) return;
-    const idToProcess = reprocessModal;
-    setReprocessModal(null);
-    handleProcessEntry(idToProcess);
-  };
+
 
   // Folder Actions
   const handleCreateOrRenameFolder = async (e: React.FormEvent) => {
@@ -826,14 +785,14 @@ export default function App() {
       };
       await db.saveGroup(newGroup);
       setGroups(prev => [...prev, newGroup]);
-      showToast(t('toast.folderCreated', { name: newGroup.name }));
+      showToast(`Folder "${newGroup.name}" created!`);
     } else if (folderModal.type === 'rename' && folderModal.id) {
       const group = groups.find(g => g.id === folderModal.id);
       if (group) {
         const updated = { ...group, name: folderModal.name.trim() };
         await db.saveGroup(updated);
         setGroups(prev => prev.map(g => g.id === folderModal.id ? updated : g));
-        showToast(t('toast.folderRenamed', { name: updated.name }));
+        showToast(`Folder renamed to "${updated.name}"`);
       }
     }
     setFolderModal(null);
@@ -874,13 +833,13 @@ export default function App() {
     if (selectedGroupId === id) {
       navigateTo('list', null, null, 'replace');
     }
-    showToast(deleteSessions ? t('toast.folderAndSessionsDeleted', { name }) : t('toast.folderDeletedSessionsPreserved', { name }));
+    showToast(deleteSessions ? `Folder "${name}" and its sessions deleted` : `Folder "${name}" deleted (sessions preserved)`);
   };
 
 
   const handleGenerateShareLink = async () => {
     if (!shareModal || !selectedSession) return;
-    showSpinner(t('toast.generatingDoc'));
+    showSpinner("Generating document...");
     try {
       const payload: any = {
         title: selectedSession.title,
@@ -975,7 +934,7 @@ export default function App() {
         }
         
         const content = await zip.generateAsync({ type: 'blob' });
-        const fileName = `zoutty-session-${selectedSession.id.substring(0, 8)}.zoutty.zip`;
+        const fileName = `lmplog-session-${selectedSession.id.substring(0, 8)}.lmplog.zip`;
         let sharedViaApi = false;
 
         if (navigator.canShare) {
@@ -999,9 +958,9 @@ export default function App() {
 
         if (!sharedViaApi) {
           saveAs(content, fileName);
-          showToast(t('toast.fileExported'));
+          showToast("Session exported as file");
         } else {
-          showToast(t('toast.shareSuccessful'));
+          showToast("Session shared successfully!");
         }
         
         const timestamp = Date.now();
@@ -1066,10 +1025,10 @@ export default function App() {
         sharedContent: updatedContent,
         viewState: 'active_code' 
       } : null);
-      showToast(isUpdating ? t('toast.shareCodeUpdated') : t('toast.shareCodeGenerated'));
+      showToast(isUpdating ? "Shared copy updated successfully!" : "Share code generated!");
     } catch (e) {
       console.error(e);
-      showToast(t('toast.failedShareLink'), true);
+      showToast("Failed to generate share code", true);
     } finally {
       hideSpinner();
     }
@@ -1078,11 +1037,11 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    showSpinner(t('toast.importingSession', 'Reading file...'));
+    showSpinner("Importing session...");
     try {
       const zip = await JSZip.loadAsync(file);
       const sessionJsonStr = await zip.file('session.json')?.async('string');
-      if (!sessionJsonStr) throw new Error('Invalid .zoutty file: missing session.json');
+      if (!sessionJsonStr) throw new Error('Invalid .lmplog file: missing session.json');
       
       const sessionData = JSON.parse(sessionJsonStr);
       const parsedMediaFiles: any[] = [];
@@ -1124,7 +1083,7 @@ export default function App() {
       setImportPreview(sessionData);
     } catch (err: any) {
       console.error(err);
-      showToast(t('toast.failedRetrieveShared', 'Failed to read file'), true);
+      showToast("Failed to retrieve shared session details", true);
     } finally {
       hideSpinner();
       e.target.value = '';
@@ -1133,12 +1092,12 @@ export default function App() {
 
   const handleImportSession = async () => {
     if (!importPreview) return;
-    showSpinner(t('toast.importingSession'));
+    showSpinner("Importing session...");
     try {
       const newSessionId = crypto.randomUUID();
       const newSession: Session = {
         id: newSessionId,
-        title: importPreview.title + t('toast.sessionImportedSuffix'),
+        title: importPreview.title + " (Imported)",
         subtitle: importPreview.subtitle || '',
         date: importPreview.date || Date.now(),
         notes: importPreview.notes || '',
@@ -1208,10 +1167,10 @@ export default function App() {
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
       setImportPreview(null);
-      showToast(t('toast.sessionImported'));
+      showToast("Session imported successfully!");
     } catch (e) {
       console.error(e);
-      showToast(t('toast.failedImport'), true);
+      showToast("Failed to import session", true);
     } finally {
       hideSpinner();
     }
@@ -1233,74 +1192,17 @@ export default function App() {
     // Save to IndexedDB and update UI
     await db.saveAudioEntry(newEntry);
     setAudioEntries(prev => ({ ...prev, [entryId]: newEntry }));
-    const sessionEntries = Object.values(audioEntries).filter(e => e.sessionId === sessionId);
+    const sessionEntries = (Object.values(audioEntries) as AudioEntry[]).filter(e => e.sessionId === sessionId);
     if (sessionEntries.length === 1 && !localStorage.getItem('hasShownConsolidationHint')) {
       localStorage.setItem('hasShownConsolidationHint', 'true');
       // Show the hint instead of the default toast
-      showToast(t('onboarding.hintConsolidation'), false, undefined, undefined, 10000);
+      showToast("💡 LMPLOG is ready! Tap the 'Generate Report' (🪄) button at the end of your session to consolidate your recordings.", false, undefined, undefined, 10000);
     } else {
-      showToast(filename ? t('toast.fileAdded', { filename }) : t('toast.audioAdded'));
+      showToast(filename ? `[${filename}] added!` : "Audio added!");
     }
   };
 
-  const handleProcessEntry = async (entryId: string) => {
-    const entry = audioEntries[entryId];
-    if (!entry || !entry.audioBlob) return;
 
-    try {
-      setProcessingIds(prev => new Set(prev).add(entryId));
-      showSpinner(t('toast.processing', { filename: entry.filename || 'audio' }));
-
-      const isOther = selectedSession?.glossaryId === 'other';
-      const activeGlossary = !isOther && (glossaries.find(g => g.id === selectedSession?.glossaryId) || glossaries.find(g => g.id === 'zouk'));
-      const danceStyle = selectedSession?.glossaryId === 'auto'
-        ? 'Auto'
-        : (isOther ? (selectedSession?.customGlossaryStyle || 'Other') : (activeGlossary ? activeGlossary.name : 'Brazilian Zouk'));
-      const glossary = (selectedSession?.glossaryId === 'auto' || isOther) ? undefined : (activeGlossary ? activeGlossary.terms : undefined);
-
-      // Call MCP Skill
-      const result: any = await callZoukAudioProcessor({
-        audio: entry.audioBlob,
-        language: entry.language,
-        sessionId: entry.sessionId,
-        filename: entry.filename,
-        glossary,
-        danceStyle
-      });
-
-      // Update entry with result
-      const finalizedEntry: any = {
-        ...entry,
-        ...result
-      };
-
-      console.log('[handleProcessEntry] Finalized entry structure - hasStrictSummary:', !!(finalizedEntry as any).strictSummary, '| hasTranscript:', !!(finalizedEntry as any).transcript);
-      await db.saveAudioEntry(finalizedEntry);
-      setAudioEntries(prev => ({ ...prev, [entryId]: finalizedEntry }));
-
-      if (result.detectedStyle && selectedSession && selectedSession.glossaryId === 'auto') {
-        const matched = glossaries.find(g => g.name.toLowerCase() === result.detectedStyle.toLowerCase());
-        if (matched) {
-          await updateSession(selectedSession.id, { glossaryId: matched.id });
-          showToast(t('toast.aiDetectedStyle', { style: result.detectedStyle, glossary: matched.name }));
-        } else {
-          showToast(t('toast.aiDetectedStyleOnly', { style: result.detectedStyle }));
-        }
-      } else {
-        showToast(entry.filename ? t('toast.processed', { filename: entry.filename }) : t('toast.audioProcessed'));
-      }
-    } catch (error) {
-      console.error('Processing failed:', error);
-      showToast(entry.filename ? t('toast.processingFailed', { filename: entry.filename }) : t('toast.audioProcessingFailed'), true);
-    } finally {
-      setProcessingIds(prev => {
-        const next = new Set(prev);
-        next.delete(entryId);
-        return next;
-      });
-      hideSpinner();
-    }
-  };
 
   // `deleteAudioEntry` has moved to `requestDeleteAudio` & `confirmDelete`.
 
@@ -1315,199 +1217,17 @@ export default function App() {
     e.target.value = '';
   };
 
-  const handleConsolidate = async () => {
-    if (!selectedSession) return;
-    showSpinner(t('toast.consolidating'));
-    try {
-      const sessionAudios = await db.getSessionAudios(selectedSession.id);
 
-      if (sessionAudios.length === 0) {
-        showToast(t('toast.noAudioData'), true);
-        return;
-      }
 
-      // Prepare payload: send transcript if available, otherwise send base64 audio
-      const audiosPayload = await Promise.all(
-        sessionAudios.map(async (a) => {
-          if (a.transcript) {
-            return {
-              audioId: a.id,
-              transcript: a.transcript
-            };
-          }
-          const b64 = await blobToBase64(a.audioBlob);
-          return {
-            audioId: a.id,
-            base64: b64,
-            language: a.language,
-            mimeType: a.audioBlob.type || 'audio/webm'
-          };
-        })
-      );
 
-      const isOther = selectedSession.glossaryId === 'other';
-      const activeGlossary = !isOther && (glossaries.find(g => g.id === selectedSession.glossaryId) || glossaries.find(g => g.id === 'zouk'));
-      const danceStyle = selectedSession.glossaryId === 'auto'
-        ? 'Auto'
-        : (isOther ? (selectedSession.customGlossaryStyle || 'Other') : (activeGlossary ? activeGlossary.name : 'Brazilian Zouk'));
-      const glossary = (selectedSession.glossaryId === 'auto' || isOther) ? undefined : (activeGlossary ? activeGlossary.terms : undefined);
 
-      const response = await fetch('/api/gemini/process-audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: selectedSession.id,
-          audios: audiosPayload,
-          glossary,
-          danceStyle,
-          availableGlossaries: glossaries,
-          appLanguage: uiLanguage
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to process audio on backend. Status: ${response.status}`);
-      }
-
-      const { report: reportResult, newTranscripts, detectedStyle } = await response.json();
-      console.log('[handleConsolidate] API response:', {
-        hasReport: !!reportResult,
-        newTranscriptsCount: newTranscripts ? Object.keys(newTranscripts).length : 0,
-        detectedStyle
-      });
-
-      // Update individual entries if new transcripts were generated
-      if (newTranscripts && Object.keys(newTranscripts).length > 0) {
-        for (const [audioId, text] of Object.entries(newTranscripts)) {
-          const entry = audioEntries[audioId];
-          if (entry) {
-            const updated = { ...entry, transcript: text as string };
-            await db.saveAudioEntry(updated);
-            setAudioEntries(prev => ({ ...prev, [audioId]: updated }));
-          }
-        }
-      }
-
-      await db.saveFinalReport({
-        id: crypto.randomUUID(),
-        sessionId: selectedSession.id,
-        report: reportResult,
-        timestamp: Date.now()
-      });
-
-      // Update session summary and glossary if detectedStyle matches a registered glossary
-      const sessionChanges: Partial<Session> = { summary: reportResult };
-      let gotStyleMatch = false;
-
-      if (detectedStyle && selectedSession.glossaryId === 'auto') {
-        const matched = glossaries.find(g => g.name.toLowerCase() === detectedStyle.toLowerCase());
-        if (matched) {
-          sessionChanges.glossaryId = matched.id;
-          gotStyleMatch = true;
-        }
-      }
-
-      await updateSession(selectedSession.id, sessionChanges);
-
-      if (gotStyleMatch) {
-        const matched = glossaries.find(g => g.name.toLowerCase() === detectedStyle.toLowerCase());
-        showToast(t('toast.aiDetectedStyle', { style: detectedStyle, glossary: matched!.name }));
-      } else if (detectedStyle && selectedSession.glossaryId === 'auto') {
-        showToast(t('toast.aiDetectedStyleOnly', { style: detectedStyle }));
-      } else {
-        showToast(t('toast.consolidated'));
-      }
-
-      // Auto-backup to Google Drive if connected (silent, no spinner)
-      if (isDriveConnected()) {
-        try {
-          const backup = await db.exportDatabase();
-          await uploadBackupToDrive(JSON.stringify(backup));
-          console.log('[Drive] Auto-backup after consolidation succeeded.');
-        } catch (e) {
-          console.warn('[Drive] Auto-backup after consolidation failed silently:', e);
-        }
-      }
-    } catch (error) {
-      console.error('Consolidation failed:', error);
-      showToast(t('toast.consolidationFailed'), true);
-    } finally {
-      hideSpinner();
-    }
-  };
-
-  const seedDemoSession = async () => {
-    const demoSessionId = "demo-session";
-    const newSession = {
-      id: demoSessionId,
-      title: t('onboarding.demoSessionTitle'),
-      subtitle: t('onboarding.demoSessionSubtitle'),
-      date: Date.now(),
-      glossaryId: 'auto',
-      isDemo: true
-    };
-    await db.saveSession(newSession);
-
-    const mockAudio = {
-      id: "demo-audio-1",
-      sessionId: demoSessionId,
-      timestamp: Date.now(),
-      language: uiLanguage,
-      transcript: t('onboarding.demoAudioTranscript'),
-      type: "recording" as const,
-      filename: t('onboarding.demoAudioFilename'),
-    };
-    await db.saveAudioEntry(mockAudio);
-
-    const mockReport = {
-      id: "demo-report-1",
-      sessionId: demoSessionId,
-      timestamp: Date.now(),
-      report: {
-        strictSummary: [t('onboarding.demoReportStrict1'), t('onboarding.demoReportStrict2')],
-        expandedInsights: {
-          drills: [t('onboarding.demoReportDrill')],
-          homework: [t('onboarding.demoReportHomework')],
-          technicalExpansion: [],
-          emotionalNotes: []
-        }
-      }
-    };
-    await db.saveFinalReport(mockReport);
-
-    const loadedSessions = await db.getSessions();
-    loadedSessions.sort((a, b) => b.date - a.date);
-    setSessions(loadedSessions);
-
-    const loadedAudios = await db.getAudioEntries();
-    const audioRecord: Record<string, any> = {};
-    loadedAudios.forEach(a => audioRecord[a.id] = a);
-    setAudioEntries(audioRecord);
-
-    // Auto navigate to the demo session list view (Homepage)
-    navigateTo('list', null, null, 'push');
-  };
-
-  const handleCompleteOnboarding = () => {
-    localStorage.setItem('zoutty_onboarding_completed', 'true');
-    setHasCompletedOnboarding(true);
-    seedDemoSession();
-  };
 
   const folders = groups.filter(g => g.id !== 'root');
   const hasFolders = folders.length > 0;
   const hasOrphanSessions = sessions.some(s => !s.groupId);
   const showSessionsSection = selectedGroupId ? true : (!hasFolders || hasOrphanSessions);
 
-  if (!hasCompletedOnboarding) {
-    return (
-      <WelcomeModal
-        currentLanguage={uiLanguage}
-        setLanguage={setUILanguage}
-        onComplete={handleCompleteOnboarding}
-      />
-    );
-  }
+
 
   // --- Renderers ---
   return (
@@ -1519,13 +1239,13 @@ export default function App() {
       {deleteModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-[60] p-6">
           <div className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95">
-            <h3 className="text-xl font-bold">{t('modals.confirmDeletion')}</h3>
+            <h3 className="text-xl font-bold">{"Confirm Deletion"}</h3>
             <p className="text-white/70">
-              {deleteModal.type === 'session' ? t('modals.deleteSessionMsg', { title: deleteModal.title }) : t('modals.deleteAudioMsg', { title: deleteModal.title })}
+              {deleteModal.type === 'session' ? `Are you sure you want to delete the session: ${deleteModal.title}?` : `Are you sure you want to delete this audio: ${deleteModal.title}?`}
             </p>
             <div className="flex gap-3 justify-end items-center mt-6">
-              <button onClick={() => setDeleteModal(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{t('modals.cancelBtn')}</button>
-              <button onClick={confirmDelete} className="px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 text-white min-h-[44px]">{t('modals.deleteBtn')}</button>
+              <button onClick={() => setDeleteModal(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{"Cancel"}</button>
+              <button onClick={confirmDelete} className="px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 text-white min-h-[44px]">{"Delete"}</button>
             </div>
           </div>
         </div>
@@ -1537,14 +1257,14 @@ export default function App() {
           <div className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold flex items-center gap-2">
               <Download className="w-5 h-5 text-brand" />
-              {t('modals.confirmExport')}
+              {"Export Session"}
             </h3>
             <p className="text-white/70 text-sm">
-              {t('modals.exportMsg')}
+              {"You are about to download this session (including all transcriptions, summary reports, and homework)."}
             </p>
 
             <div className="space-y-3">
-              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t('modals.exportIncludeTranscriptsLabel', 'Include Data')}</label>
+              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{"Include Data"}</label>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -1556,7 +1276,7 @@ export default function App() {
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${exportIncludeAudioTranscripts ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
                 <span className="text-sm text-white/80 font-medium">
-                  {t('modals.exportIncludeTranscripts', 'Include Audio Transcripts')}
+                  {"Include Audio Transcripts"}
                 </span>
               </div>
             </div>
@@ -1564,7 +1284,7 @@ export default function App() {
             <div className="bg-brand/10 border border-brand/20 p-3 rounded-xl flex items-start gap-3 mt-4">
               <AlertTriangle className="w-5 h-5 text-brand shrink-0 mt-0.5" />
               <p className="text-xs text-brand/90 leading-relaxed">
-                {t('modals.exportPdfInstructions')}
+                {"After clicking Download, your browser's Print dialog will open. Select 'Save as PDF' as the destination to save the file."}
               </p>
             </div>
 
@@ -1573,7 +1293,7 @@ export default function App() {
                 onClick={() => setShowExportConfirm(false)}
                 className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] cursor-pointer text-xs"
               >
-                {t('modals.cancelBtn')}
+                {"Cancel"}
               </button>
               <button
                 onClick={async () => {
@@ -1584,10 +1304,10 @@ export default function App() {
                     document.body.classList.remove('no-print-transcripts');
                   }
                   const dateStr = format(new Date(selectedSession.date), "yyyy-MM-dd");
-                  let fileName = `Zoutty_${dateStr}`;
+                  let fileName = `LMPLOG_${dateStr}`;
                   if (selectedSession.title) {
                     const safeTitle = selectedSession.title.replace(/[<>:"/\\|?*]/g, '_').trim();
-                    fileName = `Zoutty_${safeTitle}`;
+                    fileName = `LMPLOG_${safeTitle}`;
                   }
                   const originalTitle = document.title;
                   document.title = fileName;
@@ -1605,27 +1325,8 @@ export default function App() {
                 }}
                 className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand-light text-black transition-colors shadow-lg shadow-brand/20 min-h-[44px] cursor-pointer text-xs"
               >
-                {t('modals.exportBtn')}
+                {"Download"}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reprocess Modal */}
-      {reprocessModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-50 p-6">
-          <div className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <Zap className="w-6 h-6 text-brand" />
-              {t('modals.confirmReprocess')}
-            </h3>
-            <p className="text-white/70">
-              {t('modals.reprocessMsg')}
-            </p>
-            <div className="flex gap-3 justify-end items-center mt-6">
-              <button onClick={() => setReprocessModal(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{t('modals.cancelBtn')}</button>
-              <button onClick={confirmReprocess} className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 transition-colors shadow-lg shadow-brand/30 text-black min-h-[44px]">{t('modals.reprocessBtn')}</button>
             </div>
           </div>
         </div>
@@ -1639,23 +1340,23 @@ export default function App() {
               <svg className="w-8 h-8 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29" /><polyline points="8 13 12 17 16 13" /><line x1="12" y1="17" x2="12" y2="9" /></svg>
             </div>
             <h3 className="text-xl font-bold">
-              {t('onboarding.hintBackupTitle')}
+              {"Keep your data safe!"}
             </h3>
             <p className="text-white/70 leading-relaxed">
-              {t('onboarding.hintBackupMsg')}
+              {"Your LMPLOG data lives only on this device. Connect Google Drive in Settings for automatic cloud backups - or download a manual backup as a fallback."}
             </p>
             <div className="flex gap-3 justify-end items-center mt-6">
               <button
                 onClick={() => setShowBackupReminderModal(false)}
                 className="flex-1 px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] text-sm text-white"
               >
-                {t('onboarding.hintBackupDismissBtn')}
+                {"Got it!"}
               </button>
               <button
                 onClick={() => { setShowBackupReminderModal(false); setShowAppSettings(true); }}
                 className="flex-1 px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 transition-colors shadow-lg shadow-brand/20 text-black min-h-[44px] text-sm"
               >
-                {t('onboarding.hintBackupBtn')}
+                {"Open Settings"}
               </button>
             </div>
           </div>
@@ -1678,7 +1379,7 @@ export default function App() {
             <div className="flex items-center justify-between border-b border-white/5 pb-3 pr-6">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Settings className="w-5 h-5 text-brand" />
-                {t('appSettings.drawerTitle')}
+                {"LMPLOG Settings"}
               </h3>
               <button
                 onClick={() => setShowAppSettings(false)}
@@ -1691,25 +1392,6 @@ export default function App() {
             {/* Drawer Content */}
             <div className="flex-1 overflow-y-auto space-y-8 pr-6">
 
-              {/* Language Section */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider text-xs text-white/40">
-                  <Globe className="w-4 h-4 text-brand" />
-                  {t('appSettings.languageSection')}
-                </h4>
-                <p className="text-xs text-white/60 leading-relaxed">
-                  {t('appSettings.languageSectionDesc')}
-                </p>
-                <CustomSelect
-                  value={uiLanguage}
-                  onChange={(val) => setUILanguage(val as any)}
-                  options={Object.entries(UI_LANGUAGE_NAMES).map(([code, name]) => ({
-                    value: code,
-                    label: name
-                  }))}
-                />
-              </div>
-
               {/* Cloud Sync (Google Drive) — PRIMARY */}
               <div className="space-y-4">
                 {/* Header row */}
@@ -1721,10 +1403,10 @@ export default function App() {
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
                   <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider flex-1">
-                    {t('appSettings.cloudSyncSection')}
+                    {"Cloud Sync"}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/20 text-brand border border-brand/30">
-                    {t('appSettings.cloudSyncTagline')}
+                    {"Recommended"}
                   </span>
                   <button
                     type="button"
@@ -1740,14 +1422,14 @@ export default function App() {
                 {/* Info panel — why Drive */}
                 {showDriveInfo && (
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 space-y-2 animate-in fade-in duration-150">
-                    <p className="text-xs font-bold text-white/70">{t('appSettings.cloudSyncWhyTitle')}</p>
+                    <p className="text-xs font-bold text-white/70">{"Why back up to Google Drive?"}</p>
                     <ul className="space-y-1.5">
                       {[
-                        { emoji: '🔒', text: t('appSettings.cloudSyncWhyPrivacy') },
-                        { emoji: '⚠️', text: t('appSettings.cloudSyncWhySafety') },
-                        { emoji: '🔄', text: t('appSettings.cloudSyncWhyMultiDevice') },
-                        { emoji: '🛡️', text: t('appSettings.cloudSyncWhySandbox') },
-                        { emoji: '✨', text: t('appSettings.cloudSyncWhyAutoBackup') },
+                        { emoji: '🔒', text: "Your data stays 100% yours - LMPLOG has no server." },
+                        { emoji: '⚠️', text: "Mobile browsers can wipe local storage when your phone runs low on space." },
+                        { emoji: '🔄', text: "Restore your sessions, folders, and glossaries on any device instantly." },
+                        { emoji: '🛡️', text: "We only request access to a private app folder - we cannot see any other file in your Google Drive." },
+                        { emoji: '✨', text: "Auto-backs up silently every time you consolidate a session." },
                       ].map(({ emoji, text }, i) => (
                         <li key={i} className="text-[11px] leading-snug flex gap-1.5 items-start">
                           <span className="shrink-0 mt-px">{emoji}</span>
@@ -1771,7 +1453,7 @@ export default function App() {
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84z" />
                     </svg>
-                    {t('appSettings.cloudSyncConnectBtn')}
+                    {"Connect Google Drive"}
                   </button>
                 )}
 
@@ -1790,7 +1472,7 @@ export default function App() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-white/40 uppercase tracking-wider">{t('appSettings.cloudSyncConnectedAs')}</p>
+                        <p className="text-[10px] text-white/40 uppercase tracking-wider">{"Connected as"}</p>
                         <p className="text-xs font-semibold text-white truncate">{driveAccount?.email ?? 'Google Account'}</p>
                       </div>
                       <button
@@ -1798,7 +1480,7 @@ export default function App() {
                         onClick={handleDisconnectDrive}
                         className="text-[10px] text-white/30 hover:text-red-400 transition-colors shrink-0 font-semibold"
                       >
-                        {t('appSettings.cloudSyncDisconnectBtn')}
+                        {"Disconnect"}
                       </button>
                     </div>
 
@@ -1810,7 +1492,7 @@ export default function App() {
                         className="flex flex-col items-center justify-center gap-1.5 p-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-green-500/10 hover:border-green-500/30 transition-all"
                       >
                         <CloudUpload className="w-5 h-5 text-green-400" />
-                        <span className="text-[11px] font-bold text-white/80">{t('appSettings.cloudSyncBackupBtn')}</span>
+                        <span className="text-[11px] font-bold text-white/80">{"Backup Now"}</span>
                       </button>
                       <button
                         id="driveRestoreBtn"
@@ -1818,34 +1500,34 @@ export default function App() {
                         className="flex flex-col items-center justify-center gap-1.5 p-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-blue-500/10 hover:border-blue-500/30 transition-all"
                       >
                         <CloudDownload className="w-5 h-5 text-blue-400" />
-                        <span className="text-[11px] font-bold text-white/80">{t('appSettings.cloudSyncRestoreBtn')}</span>
+                        <span className="text-[11px] font-bold text-white/80">{"Restore from Drive"}</span>
                       </button>
                     </div>
-                    <p className="text-[10px] text-white/30 text-center leading-snug">{t('appSettings.cloudSyncAutoNote')}</p>
+                    <p className="text-[10px] text-white/30 text-center leading-snug">{"You can also back up manually at any time by clicking the button above."}</p>
                   </div>
                 )}
               </div>
 
               {/* Backup & Restore (local) — SECONDARY */}
               <AppSettingsCollapsible
-                label={t('appSettings.backupRestoreSection')}
+                label={"Backup & Restore"}
                 icon={<Download className="w-4 h-4 text-brand" />}
               >
                 {/* Backup Section */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider flex items-center gap-2">
                     <Download className="w-3.5 h-3.5 text-brand" />
-                    {t('appSettings.backupSection')}
+                    {"Backup Database"}
                   </h4>
                   <p className="text-xs text-white/60 leading-relaxed">
-                    {t('appSettings.backupDesc')}
+                    {"Download a full backup of all your sessions, folder structures, vocabulary glossaries, and recorded audio files to your local device."}
                   </p>
                   <button
                     onClick={handleExportBackup}
                     className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 hover:border-brand/40 transition-all text-xs font-bold shadow-sm"
                   >
                     <Download className="w-4 h-4 text-brand" />
-                    {t('appSettings.exportBackupBtn')}
+                    {"Export JSON Backup"}
                   </button>
                 </div>
 
@@ -1853,14 +1535,14 @@ export default function App() {
                 <div className="space-y-3 pt-4 border-t border-white/5 mt-4">
                   <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5 text-brand" />
-                    {t('appSettings.restoreSection')}
+                    {"Restore Database"}
                   </h4>
                   <p className="text-xs text-white/60 leading-relaxed text-red-300/80">
-                    {t('appSettings.restoreDesc')} <strong>{t('appSettings.restoreWarning')}</strong>
+                    {"Restore your application from a previously downloaded JSON backup file."} <strong>{"Warning: This will overwrite and delete all your current local sessions and data."}</strong>
                   </p>
                   <label className="cursor-pointer w-full flex items-center justify-center gap-2 p-3.5 rounded-xl border border-dashed border-white/20 bg-white/5 hover:bg-white/10 text-white hover:border-brand/45 transition-all text-xs font-bold shadow-sm">
                     <Upload className="w-4 h-4 text-brand" />
-                    <span>{t('appSettings.importBackupBtn')}</span>
+                    <span>{"Import JSON Backup"}</span>
                     <input
                       type="file"
                       accept=".json"
@@ -1871,43 +1553,23 @@ export default function App() {
                 </div>
               </AppSettingsCollapsible>
 
-              {/* Dev & Testing Section */}
-              <div className="space-y-3 border-t border-white/5 pt-6">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider text-xs text-white/40">
-                  <Wand2 className="w-4 h-4 text-brand" />
-                  Development & Testing
-                </h4>
-                <p className="text-xs text-white/60 leading-relaxed">
-                  Trigger onboarding flow or re-inject the mock demo session for testing purposes.
-                </p>
-                <button
-                  onClick={() => {
-                    setShowAppSettings(false);
-                    localStorage.removeItem('zoutty_onboarding_completed');
-                    setHasCompletedOnboarding(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl border border-brand/20 bg-brand/5 text-brand hover:bg-brand/10 hover:text-white transition-all text-xs font-bold shadow-sm"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Test Onboarding Flow
-                </button>
-              </div>
+
 
               {/* Reset Section */}
               <div className="space-y-3 border-t border-white/5 pt-6">
                 <h4 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider text-xs text-white/40">
                   <Trash2 className="w-4 h-4 text-red-400" />
-                  {t('appSettings.resetSection')}
+                  {"Reset Application"}
                 </h4>
                 <p className="text-xs text-white/60 leading-relaxed text-red-300/80">
-                  {t('appSettings.resetDesc')} <strong>{t('appSettings.resetWarning')}</strong>
+                  {"Wipe all folders, sessions, settings, and audio recordings from this device."} <strong>{"Warning: This action is permanent and cannot be undone."}</strong>
                 </p>
                 <button
                   onClick={() => setShowResetConfirm(true)}
                   className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10 hover:text-white transition-all text-xs font-bold shadow-sm"
                 >
                   <Trash2 className="w-4 h-4" />
-                  {t('appSettings.resetBtn')}
+                  {"Reset App Data"}
                 </button>
               </div>
             </div>
@@ -1918,7 +1580,7 @@ export default function App() {
                 onClick={() => setShowVersionModal(true)}
                 className="text-[10px] text-white/30 tracking-widest font-mono hover:text-white/60 transition-colors cursor-pointer"
               >
-                ZOUTTY v{version}
+                LMPLOG v{version}
               </button>
             </div>
           </div>
@@ -1930,8 +1592,8 @@ export default function App() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-[60] p-6" onClick={() => setShowVersionModal(false)}>
           <div className="glass p-8 max-w-md w-full animate-in zoom-in-95 relative max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="text-center shrink-0">
-              <ZouttyIcon className="w-16 h-16 text-brand mx-auto" />
-              <h3 className="text-xs uppercase tracking-[0.2em] text-brand font-bold mt-2">ZOUTTY</h3>
+              <LMPLOGIcon className="w-16 h-16 text-brand mx-auto" />
+              <h3 className="text-xs uppercase tracking-[0.2em] text-brand font-bold mt-2">LMPLOG</h3>
               <p className="inline-block mt-2 px-4 py-1 bg-white/10 text-white/70 font-mono font-medium rounded-full border border-white/20 text-sm tracking-widest">
                 v{version}
               </p>
@@ -1961,7 +1623,7 @@ export default function App() {
                 onClick={() => setShowVersionModal(false)}
                 className="px-8 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]"
               >
-                {t('modals.closeBtn')}
+                {"Close"}
               </button>
             </div>
           </div>
@@ -1974,16 +1636,16 @@ export default function App() {
           <div className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95">
             <h3 className="text-xl font-bold flex items-center gap-2 text-white">
               <Upload className="w-6 h-6 text-brand" />
-              {t('modals.confirmRestore')}
+              {"Confirm Restore"}
             </h3>
             <p className="text-white/70 text-sm leading-relaxed">
-              {t('modals.restoreMsg', { filename: restoreBackupFile.name })}
+              {`Are you sure you want to restore the backup file "${restoreBackupFile.name}"?`}
               <br /><br />
-              {t('modals.restoreWarningMsg')}
+              {"This will overwrite and delete all your current local sessions, folders, settings, and audio recordings. This action cannot be undone."}
             </p>
             <div className="flex gap-3 justify-end items-center mt-6">
-              <button onClick={() => setRestoreBackupFile(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] text-sm">{t('modals.cancelBtn')}</button>
-              <button onClick={() => executeImportBackup(restoreBackupFile)} className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 transition-colors shadow-lg shadow-brand/30 text-black min-h-[44px] text-sm">{t('modals.restoreBtn')}</button>
+              <button onClick={() => setRestoreBackupFile(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] text-sm">{"Cancel"}</button>
+              <button onClick={() => executeImportBackup(restoreBackupFile)} className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 transition-colors shadow-lg shadow-brand/30 text-black min-h-[44px] text-sm">{"Restore"}</button>
             </div>
           </div>
         </div>
@@ -1995,16 +1657,16 @@ export default function App() {
           <div className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95">
             <h3 className="text-xl font-bold flex items-center gap-2 text-red-400">
               <Trash2 className="w-6 h-6 text-red-500" />
-              {t('modals.confirmReset')}
+              {"Confirm Reset"}
             </h3>
             <p className="text-white/70 text-sm leading-relaxed">
-              {t('modals.resetMsg')}
+              {"Are you sure you want to reset the app?"}
               <br /><br />
-              {t('modals.resetWarningMsg')}
+              {"This will permanently delete all folders, sessions, settings, and audio clips from this device. This action cannot be undone."}
             </p>
             <div className="flex gap-3 justify-end items-center mt-6">
-              <button onClick={() => setShowResetConfirm(false)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] text-sm">{t('modals.cancelBtn')}</button>
-              <button onClick={handleResetApp} className="px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 text-white min-h-[44px] text-sm">{t('modals.resetEverythingBtn')}</button>
+              <button onClick={() => setShowResetConfirm(false)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] text-sm">{"Cancel"}</button>
+              <button onClick={handleResetApp} className="px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 text-white min-h-[44px] text-sm">{"Reset Everything"}</button>
             </div>
           </div>
         </div>
@@ -2023,24 +1685,24 @@ export default function App() {
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-bold text-white">{t('modals.confirmDriveDisconnect')}</h3>
+              <h3 className="text-lg font-bold text-white">{"Disconnect Google Drive?"}</h3>
             </div>
             <p className="text-white/60 text-sm leading-relaxed">
-              {t('modals.driveDisconnectMsg')}
+              {"Your backup file will remain safely stored in your Google Drive. You can reconnect at any time."}
             </p>
             <div className="flex gap-3 justify-end items-center pt-1">
               <button
                 onClick={() => setShowDriveDisconnectConfirm(false)}
                 className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] text-sm"
               >
-                {t('modals.cancelBtn')}
+                {"Cancel"}
               </button>
               <button
                 id="driveDisconnectConfirmBtn"
                 onClick={confirmDisconnectDrive}
                 className="px-5 py-2.5 rounded-xl font-bold bg-white/15 hover:bg-white/25 transition-colors min-h-[44px] text-sm text-white"
               >
-                {t('modals.driveDisconnectBtn')}
+                {"Disconnect"}
               </button>
             </div>
           </div>
@@ -2053,14 +1715,14 @@ export default function App() {
           <form onSubmit={handleCreateOrRenameFolder} className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <Folder className="w-6 h-6 text-brand" />
-              {folderModal.type === 'create' ? t('modals.createFolder') : t('modals.renameFolder')}
+              {folderModal.type === 'create' ? "Create Folder" : "Rename Folder"}
             </h3>
             <div className="space-y-2">
-              <label className="text-xs text-white/50 font-bold uppercase tracking-wider">{t('modals.folderNameLabel')}</label>
+              <label className="text-xs text-white/50 font-bold uppercase tracking-wider">{"Folder Name"}</label>
               <input
                 autoFocus
                 type="text"
-                placeholder={t('modals.folderNamePlaceholder')}
+                placeholder={"Enter folder name..."}
                 value={folderModal.name}
                 onChange={(e) => setFolderModal({ ...folderModal, name: e.target.value })}
                 className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-brand/50 transition-colors"
@@ -2068,8 +1730,8 @@ export default function App() {
               />
             </div>
             <div className="flex gap-3 justify-end items-center">
-              <button type="button" onClick={() => setFolderModal(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{t('modals.cancelBtn')}</button>
-              <button type="submit" className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 text-bg-dark transition-colors shadow-lg shadow-brand/20 min-h-[44px]">{t('modals.saveBtn')}</button>
+              <button type="button" onClick={() => setFolderModal(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{"Cancel"}</button>
+              <button type="submit" className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 text-bg-dark transition-colors shadow-lg shadow-brand/20 min-h-[44px]">{"Save"}</button>
             </div>
           </form>
         </div>
@@ -2081,10 +1743,10 @@ export default function App() {
           <div className="glass p-8 max-w-md w-full space-y-6 animate-in zoom-in-95">
             <h3 className="text-xl font-bold text-red-400 flex items-center gap-2">
               <Trash2 className="w-6 h-6 shrink-0" />
-              {t('modals.deleteFolder')}
+              {"Delete Folder"}
             </h3>
             <p className="text-white/80">
-              {t('modals.deleteFolderMsg', { name: deleteFolderModal.name })}
+              {`Are you sure you want to delete the folder "${deleteFolderModal.name}"?`}
             </p>
 
             {/* Custom confirm option checkbox */}
@@ -2095,9 +1757,9 @@ export default function App() {
                 onChange={setDeleteFolderAlsoSessions}
                 label={
                   <div className="text-sm text-red-300 font-semibold cursor-pointer select-none">
-                    {t('modals.deleteFolderAlsoSessions')}
+                    {"Also delete all sessions inside this folder"}
                     <span className="block text-xs font-normal text-white/50 mt-1 font-sans">
-                      {t('modals.deleteFolderSessionsNote')}
+                      {"(If left unchecked, these sessions will be preserved and moved to the root level)"}
                     </span>
                   </div>
                 }
@@ -2112,7 +1774,7 @@ export default function App() {
                 }}
                 className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]"
               >
-                {t('modals.cancelBtn')}
+                {"Cancel"}
               </button>
               <button
                 onClick={() => {
@@ -2121,7 +1783,7 @@ export default function App() {
                 }}
                 className="px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 text-white min-h-[44px]"
               >
-                {t('modals.deleteFolderBtn')}
+                {"Delete Folder"}
               </button>
             </div>
           </div>
@@ -2135,7 +1797,7 @@ export default function App() {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <FolderOpen className="w-5 h-5 text-brand" />
-                {t('modals.moveSessionTitle')}
+                {"Move Session to Folder"}
               </h3>
               <button
                 onClick={() => setMoveSessionModal(null)}
@@ -2146,7 +1808,7 @@ export default function App() {
             </div>
 
             <p className="text-xs text-white/60 font-sans">
-              {t('modals.moveSessionDesc')}
+              {"Choose a folder destination for this session:"}
             </p>
 
             <div className="space-y-2.5 max-h-[40vh] overflow-y-auto pr-1">
@@ -2154,7 +1816,7 @@ export default function App() {
               <button
                 onClick={async () => {
                   await updateSession(moveSessionModal.sessionId, { groupId: undefined });
-                  showToast(t('toast.sessionMovedToRoot'));
+                  showToast("Session moved to Root");
                   setMoveSessionModal(null);
                 }}
                 className={`w-full p-3.5 rounded-xl border flex items-center gap-3 transition-all text-left ${!moveSessionModal.currentGroupId
@@ -2163,7 +1825,7 @@ export default function App() {
                   }`}
               >
                 <Folder className="w-5 h-5 opacity-60 text-brand" />
-                <div className="flex-1 text-sm">{t('modals.moveSessionRoot')}</div>
+                <div className="flex-1 text-sm">{"Root (Ungrouped)"}</div>
                 {!moveSessionModal.currentGroupId && <CheckCircle2 className="w-4 h-4 text-brand" />}
               </button>
 
@@ -2173,7 +1835,7 @@ export default function App() {
                   key={group.id}
                   onClick={async () => {
                     await updateSession(moveSessionModal.sessionId, { groupId: group.id });
-                    showToast(t('toast.sessionMovedToFolder', { name: group.name }));
+                    showToast(`Session moved to "${group.name}"`);
                     setMoveSessionModal(null);
                   }}
                   className={`w-full p-3.5 rounded-xl border flex items-center gap-3 transition-all text-left ${moveSessionModal.currentGroupId === group.id
@@ -2193,7 +1855,7 @@ export default function App() {
                 onClick={() => setMoveSessionModal(null)}
                 className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors text-sm min-h-[38px]"
               >
-                {t('modals.cancelBtn')}
+                {"Cancel"}
               </button>
             </div>
           </div>
@@ -2206,13 +1868,13 @@ export default function App() {
           <div className="glass p-8 max-w-md w-full space-y-6 animate-in zoom-in-95">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <Share2 className="w-6 h-6 text-brand" />
-              {t('modals.shareSession')}
+              {"Share Session"}
             </h3>
 
             {shareModal.viewState === 'checklist' ? (
               <>
                 <p className="text-white/70 text-sm">
-                  {t('modals.shareSelectInfo')}
+                  {"Select what information you want to share with other users:"}
                 </p>
                 <div className="space-y-4 bg-black/20 p-5 rounded-2xl border border-white/5 max-h-[45vh] overflow-y-auto pr-1">
                   <div className="space-y-2">
@@ -2232,7 +1894,7 @@ export default function App() {
                       }}
                       label={
                         <span className={`text-sm font-semibold ${!shareModal.availableReport ? 'text-white/40' : 'text-white'}`}>
-                          {t('modals.shareConsolidatedReport')} {!shareModal.availableReport && t('modals.shareReportLocked')}
+                          {"Consolidated Session Report"} {!shareModal.availableReport && "(Locked/Not Consolidated)"}
                         </span>
                       }
                       className="px-2 py-1.5"
@@ -2254,7 +1916,7 @@ export default function App() {
                             })}
                             className="text-[10px] bg-white/5 hover:bg-white/10 text-white/60 px-2 py-1 rounded transition-colors font-bold uppercase"
                           >
-                            {t('modals.shareSelectAll')}
+                            {"Select All"}
                           </button>
                           <button
                             type="button"
@@ -2268,7 +1930,7 @@ export default function App() {
                             })}
                             className="text-[10px] bg-white/5 hover:bg-white/10 text-white/60 px-2 py-1 rounded transition-colors font-bold uppercase"
                           >
-                            {t('modals.shareDeselectAll')}
+                            {"Deselect All"}
                           </button>
                         </div>
                       )}
@@ -2277,35 +1939,35 @@ export default function App() {
                         disabled={!shareModal.availableReport || !shareModal.shareReport || !shareModal.availableStrictSummary}
                         checked={shareModal.shareStrictSummary}
                         onChange={(checked) => setShareModal({ ...shareModal, shareStrictSummary: checked })}
-                        label={t('modals.shareStrictSummary') + (!shareModal.availableStrictSummary && shareModal.availableReport ? ' ' + t('modals.shareNotAvailable') : '')}
+                        label={"Strict Summary" + (!shareModal.availableStrictSummary && shareModal.availableReport ? ' ' + "(Not available)" : '')}
                         className="py-0.5"
                       />
                       <CustomCheckbox
                         disabled={!shareModal.availableReport || !shareModal.shareReport || !shareModal.availableDrills}
                         checked={shareModal.shareDrills}
                         onChange={(checked) => setShareModal({ ...shareModal, shareDrills: checked })}
-                        label={t('modals.shareDrills') + (!shareModal.availableDrills && shareModal.availableReport ? ' ' + t('modals.shareNotAvailable') : '')}
+                        label={"Drills" + (!shareModal.availableDrills && shareModal.availableReport ? ' ' + "(Not available)" : '')}
                         className="py-0.5"
                       />
                       <CustomCheckbox
                         disabled={!shareModal.availableReport || !shareModal.shareReport || !shareModal.availableHomework}
                         checked={shareModal.shareHomework}
                         onChange={(checked) => setShareModal({ ...shareModal, shareHomework: checked })}
-                        label={t('modals.shareHomework') + (!shareModal.availableHomework && shareModal.availableReport ? ' ' + t('modals.shareNotAvailable') : '')}
+                        label={"Homework" + (!shareModal.availableHomework && shareModal.availableReport ? ' ' + "(Not available)" : '')}
                         className="py-0.5"
                       />
                       <CustomCheckbox
                         disabled={!shareModal.availableReport || !shareModal.shareReport || !shareModal.availableTechnical}
                         checked={shareModal.shareTechnical}
                         onChange={(checked) => setShareModal({ ...shareModal, shareTechnical: checked })}
-                        label={t('modals.shareTechnical') + (!shareModal.availableTechnical && shareModal.availableReport ? ' ' + t('modals.shareNotAvailable') : '')}
+                        label={"Technical Expansion" + (!shareModal.availableTechnical && shareModal.availableReport ? ' ' + "(Not available)" : '')}
                         className="py-0.5"
                       />
                       <CustomCheckbox
                         disabled={!shareModal.availableReport || !shareModal.shareReport || !shareModal.availableEmotional}
                         checked={shareModal.shareEmotional}
                         onChange={(checked) => setShareModal({ ...shareModal, shareEmotional: checked })}
-                        label={t('modals.shareEmotional') + (!shareModal.availableEmotional && shareModal.availableReport ? ' ' + t('modals.shareNotAvailable') : '')}
+                        label={"Emotional Notes" + (!shareModal.availableEmotional && shareModal.availableReport ? ' ' + "(Not available)" : '')}
                         className="py-0.5"
                       />
                     </div>
@@ -2318,7 +1980,7 @@ export default function App() {
                       onChange={(checked) => setShareModal({ ...shareModal, shareNotes: checked })}
                       label={
                         <span className={`text-sm font-semibold ${!shareModal.availableNotes ? 'text-white/40' : 'text-white'}`}>
-                          {t('modals.shareNotes')} {!shareModal.availableNotes && t('modals.shareNoNotes')}
+                          {"Custom Session Notes"} {!shareModal.availableNotes && "(No notes written)"}
                         </span>
                       }
                       className="px-2 py-1.5"
@@ -2332,7 +1994,7 @@ export default function App() {
                       onChange={(checked) => setShareModal({ ...shareModal, shareTranscripts: checked })}
                       label={
                         <span className={`text-sm font-semibold ${!shareModal.availableTranscripts ? 'text-white/40' : 'text-white'}`}>
-                          {t('modals.shareTranscripts')} {!shareModal.availableTranscripts && t('modals.shareNoTranscripts')}
+                          {"Individual Clip Transcripts"} {!shareModal.availableTranscripts && "(No audio clips transcribed)"}
                         </span>
                       }
                       className="px-2 py-1.5"
@@ -2345,7 +2007,7 @@ export default function App() {
                       onChange={(checked) => setShareModal({ ...shareModal, shareMedia: checked })}
                       label={
                         <span className={`text-sm font-semibold ${!shareModal.availableMedia ? 'text-white/40' : 'text-white'}`}>
-                          {t('modals.shareMedia')} {!shareModal.availableMedia && <span className="font-normal text-xs opacity-70">({t('modals.shareNoMedia')})</span>}
+                          {"Include Media"} {!shareModal.availableMedia && <span className="font-normal text-xs opacity-70">({"(No media found)"})</span>}
                         </span>
                       }
                       className="px-2 py-1.5"
@@ -2353,19 +2015,19 @@ export default function App() {
                     {shareModal.shareMedia && (
                       <p className="px-2 mt-1 text-xs text-brand font-medium flex items-center gap-1.5">
                         <AlertTriangle className="w-3.5 h-3.5" />
-                        {t('modals.shareMediaWarning')}
+                        {"Heavy media selected. This session will be exported as a local file."}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="flex gap-3 justify-end items-center">
-                  <button onClick={() => setShareModal(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{t('modals.cancelBtn')}</button>
+                  <button onClick={() => setShareModal(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{"Cancel"}</button>
                   <button
                     onClick={handleGenerateShareLink}
                     disabled={!shareModal.shareReport && !shareModal.shareNotes && !shareModal.shareTranscripts && !shareModal.shareMedia}
                     className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 disabled:opacity-20 text-bg-dark transition-colors shadow-lg shadow-brand/20 min-h-[44px]"
                   >
-                    {shareModal.shareMedia ? t('modals.exportFileBtn') : (selectedSession.shareId ? t('modals.updateShareLink') : t('modals.generateShareLink'))}
+                    {shareModal.shareMedia ? "Export File" : (selectedSession.shareId ? "Update Copy" : "Generate Code")}
                   </button>
                 </div>
               </>
@@ -2374,27 +2036,27 @@ export default function App() {
                 <div className="space-y-4 font-sans">
                   <div className="text-white/70 text-sm leading-relaxed bg-black/20 p-4 rounded-xl border border-white/5">
                     <p className="mb-3">
-                      {t('modals.previouslySharedCodeText', { date: shareModal.shareTimestamp ? new Date(shareModal.shareTimestamp).toLocaleDateString() : '' })}
+                      {`This session was already shared on ${shareModal.shareTimestamp ? new Date(shareModal.shareTimestamp).toLocaleDateString() : ''} with the following code and included:`}
                     </p>
                     
                     <ul className="list-disc pl-5 space-y-1.5 text-xs text-white/90 font-medium mb-5">
-                      {shareModal.sharedContent?.report && <li>{t('modals.shareConsolidatedReport')}</li>}
-                      {shareModal.sharedContent?.notes && <li>{t('modals.shareNotes')}</li>}
-                      {shareModal.sharedContent?.transcripts && <li>{t('modals.shareTranscripts')}</li>}
-                      {shareModal.sharedContent?.media && <li>{t('modals.shareMedia')}</li>}
+                      {shareModal.sharedContent?.report && <li>{"Consolidated Session Report"}</li>}
+                      {shareModal.sharedContent?.notes && <li>{"Custom Session Notes"}</li>}
+                      {shareModal.sharedContent?.transcripts && <li>{"Individual Clip Transcripts"}</li>}
+                      {shareModal.sharedContent?.media && <li>{"Include Media"}</li>}
                       {(!shareModal.sharedContent?.report && !shareModal.sharedContent?.notes && !shareModal.sharedContent?.transcripts && !shareModal.sharedContent?.media) && (
                         <li className="text-white/40 italic">No specific items recorded.</li>
                       )}
                     </ul>
 
                     <div className="flex flex-col items-center justify-center bg-black/40 border border-white/10 rounded-2xl p-4 space-y-2 relative">
-                      <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{t('modals.shareCodeLabel')}</span>
+                      <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{"Share Code"}</span>
                       <div className="flex items-center gap-4">
                         <span className="text-brand text-3xl font-mono font-black tracking-widest select-all">{shareModal.shareCode}</span>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(shareModal.shareCode || '');
-                            showToast(t('toast.codeCopied'));
+                            showToast("Share code copied to clipboard!");
                           }}
                           className="p-2.5 bg-white/5 hover:bg-white/10 active:scale-95 rounded-xl text-white/60 transition-all shadow-sm"
                           title="Copy code"
@@ -2407,36 +2069,36 @@ export default function App() {
 
                   <p className="text-white/40 text-[10px] italic">
                     {shareModal.shareTimestamp
-                      ? t('modals.shareLinkExpiryCountdown', { days: Math.max(1, 30 - Math.floor((Date.now() - shareModal.shareTimestamp) / (1000 * 60 * 60 * 24))) })
-                      : t('modals.shareLinkExpiry')}
+                      ? `This link will automatically expire in ${Math.max(1, 30 - Math.floor((Date.now() - shareModal.shareTimestamp) / (1000 * 60 * 60 * 24)))} days`
+                      : "This link will automatically expire in 30 days"}
                   </p>
 
                   <button
                     onClick={async () => {
                       const shareCode = shareModal.shareCode || '';
-                      const shareMessage = t('modals.shareMessageTemplate', { code: shareCode });
+                      const shareMessage = `Import my session in LMPLOG using the code: ${shareCode}`;
 
                       if (navigator.share) {
                         try {
                           await navigator.share({
-                            title: t('modals.shareSession'),
+                            title: "Share Session",
                             text: shareMessage,
                           });
-                          showToast(t('toast.shareSuccessful'));
+                          showToast("Session shared successfully!");
                         } catch (err) {
                           console.log('Share sheet dismissed or failed, falling back to copy:', err);
                           navigator.clipboard.writeText(shareMessage);
-                          showToast(t('toast.codeCopied'));
+                          showToast("Share code copied to clipboard!");
                         }
                       } else {
                         navigator.clipboard.writeText(shareMessage);
-                        showToast(t('toast.codeCopied'));
+                        showToast("Share code copied to clipboard!");
                       }
                     }}
                     className="w-full py-3 bg-brand text-bg-dark rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand/90 transition-all active:scale-[0.98] shadow-lg shadow-brand/20 min-h-[44px]"
                   >
                     <Share2 className="w-5 h-5" />
-                    <span>{t('modals.shareCodeBtn')}</span>
+                    <span>{"Share Code"}</span>
                   </button>
                 </div>
                 <div className="flex justify-end gap-3 items-center">
@@ -2444,9 +2106,9 @@ export default function App() {
                     onClick={() => setShareModal({ ...shareModal, viewState: 'checklist' })}
                     className="px-5 py-2.5 rounded-xl font-bold border border-white/10 text-white/60 hover:bg-white/5 hover:text-white/80 transition-colors min-h-[44px]"
                   >
-                    {t('modals.updateExportSettingsBtn')}
+                    {"Update Settings"}
                   </button>
-                  <button onClick={() => setShareModal(null)} className="px-6 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{t('modals.closeBtn')}</button>
+                  <button onClick={() => setShareModal(null)} className="px-6 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{"Close"}</button>
                 </div>
               </>
             ) : shareModal.viewState === 'active_file' ? (
@@ -2454,13 +2116,13 @@ export default function App() {
                 <div className="space-y-4 font-sans">
                   <div className="text-white/70 text-sm leading-relaxed bg-black/20 p-5 rounded-xl border border-white/5">
                     <p className="mb-3">
-                      {t('modals.previouslyExportedText', { date: shareModal.shareTimestamp ? new Date(shareModal.shareTimestamp).toLocaleDateString() : '' })}
+                      {`This session was exported as a file on ${shareModal.shareTimestamp ? new Date(shareModal.shareTimestamp).toLocaleDateString() : ''} and included:`}
                     </p>
                     <ul className="list-disc pl-5 space-y-1.5 text-xs text-white/90 font-medium">
-                      {shareModal.sharedContent?.report && <li>{t('modals.shareConsolidatedReport')}</li>}
-                      {shareModal.sharedContent?.notes && <li>{t('modals.shareNotes')}</li>}
-                      {shareModal.sharedContent?.transcripts && <li>{t('modals.shareTranscripts')}</li>}
-                      {shareModal.sharedContent?.media && <li>{t('modals.shareMedia')}</li>}
+                      {shareModal.sharedContent?.report && <li>{"Consolidated Session Report"}</li>}
+                      {shareModal.sharedContent?.notes && <li>{"Custom Session Notes"}</li>}
+                      {shareModal.sharedContent?.transcripts && <li>{"Individual Clip Transcripts"}</li>}
+                      {shareModal.sharedContent?.media && <li>{"Include Media"}</li>}
                       {(!shareModal.sharedContent?.report && !shareModal.sharedContent?.notes && !shareModal.sharedContent?.transcripts && !shareModal.sharedContent?.media) && (
                         <li className="text-white/40 italic">No specific items recorded.</li>
                       )}
@@ -2472,7 +2134,7 @@ export default function App() {
                     className="w-full py-3 bg-brand text-bg-dark rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand/90 transition-all active:scale-[0.98] shadow-lg shadow-brand/20 min-h-[44px]"
                   >
                     <Download className="w-5 h-5" />
-                    <span>{t('modals.exportFileAgainBtn')}</span>
+                    <span>{"Export File Again"}</span>
                   </button>
                 </div>
                 <div className="flex justify-end gap-3 items-center mt-6">
@@ -2480,9 +2142,9 @@ export default function App() {
                     onClick={() => setShareModal({ ...shareModal, viewState: 'checklist' })}
                     className="px-5 py-2.5 rounded-xl font-bold border border-white/10 text-white/60 hover:bg-white/5 hover:text-white/80 transition-colors min-h-[44px]"
                   >
-                    {t('modals.updateExportSettingsBtn')}
+                    {"Update Settings"}
                   </button>
-                  <button onClick={() => setShareModal(null)} className="px-6 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{t('modals.closeBtn')}</button>
+                  <button onClick={() => setShareModal(null)} className="px-6 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]">{"Close"}</button>
                 </div>
               </>
             ) : null}
@@ -2498,9 +2160,9 @@ export default function App() {
           <div className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95">
             <h3 className="text-xl font-bold text-brand flex items-center gap-2">
               <Download className="w-6 h-6 shrink-0 text-brand" />
-              {t('modals.importCodeTitle')}
+              {"Import Session"}
             </h3>
-            <p className="text-white/80 text-sm font-sans">{t('modals.importCodeDesc')}</p>
+            <p className="text-white/80 text-sm font-sans">{"Enter the 6-character code shared with you to preview and import the session."}</p>
 
             <div className="space-y-4">
               <input
@@ -2508,7 +2170,7 @@ export default function App() {
                 maxLength={6}
                 value={importCodeValue}
                 onChange={(e) => setImportCodeValue(e.target.value.toUpperCase().trim())}
-                placeholder={t('modals.importCodePlaceholder')}
+                placeholder={"E.g., A1B2C3"}
                 className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-center text-lg font-mono font-bold tracking-widest text-white outline-none focus:border-brand transition-colors"
                 autoFocus
               />
@@ -2523,18 +2185,18 @@ export default function App() {
                   }}
                   className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]"
                 >
-                  {t('modals.cancelBtn')}
+                  {"Cancel"}
                 </button>
                 <button
                   onClick={async () => {
                     if (importCodeValue.length !== 6) {
-                      showToast(t('toast.invalidCodeLength'), true);
+                      showToast("Code must be exactly 6 characters.", true);
                       return;
                     }
                     const codeToFetch = importCodeValue;
                     setShowImportCodeModal(false);
                     setImportCodeValue('');
-                    showSpinner(t('toast.retrievingSession'));
+                    showSpinner("Retrieving shared session...");
                     try {
                       const res = await fetch(`/api/share/${codeToFetch}`);
                       if (!res.ok) throw new Error('Shared session not found');
@@ -2542,7 +2204,7 @@ export default function App() {
                       setImportPreview(data);
                     } catch (e: any) {
                       console.error(e);
-                      showToast(t('toast.failedRetrieveShared'), true);
+                      showToast("Failed to retrieve shared session details", true);
                     } finally {
                       hideSpinner();
                     }
@@ -2550,19 +2212,19 @@ export default function App() {
                   disabled={importCodeValue.length !== 6}
                   className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 disabled:opacity-20 text-bg-dark transition-colors shadow-lg shadow-brand/30 min-h-[44px]"
                 >
-                  {t('modals.importSessionBtn')}
+                  {"Import Session"}
                 </button>
               </div>
 
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-white/10"></div>
-                <span className="flex-shrink-0 mx-4 text-white/40 text-xs uppercase tracking-widest">{t('modals.or', 'or')}</span>
+                <span className="flex-shrink-0 mx-4 text-white/40 text-xs uppercase tracking-widest">{"or"}</span>
                 <div className="flex-grow border-t border-white/10"></div>
               </div>
 
-              <input type="file" id="zoutty-import-file" accept=".zoutty,.zoutty.zip,.zip,application/zip" className="hidden" onChange={handleImportFile} />
-              <label htmlFor="zoutty-import-file" className="w-full text-center px-5 py-3 rounded-xl font-bold border border-white/10 text-white/80 hover:bg-white/5 transition-colors cursor-pointer">
-                {t('modals.importFromFile', 'Import from .zoutty file')}
+              <input type="file" id="lmplog-import-file" accept=".lmplog,.lmplog.zip,.zip,application/zip" className="hidden" onChange={handleImportFile} />
+              <label htmlFor="lmplog-import-file" className="w-full text-center px-5 py-3 rounded-xl font-bold border border-white/10 text-white/80 hover:bg-white/5 transition-colors cursor-pointer">
+                {"Import from file"}
               </label>
             </div>
           </div>
@@ -2575,44 +2237,44 @@ export default function App() {
           <div className="glass p-8 max-w-md w-full space-y-6 animate-in zoom-in-95 max-h-[85vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-brand flex items-center gap-2">
               <Share2 className="w-6 h-6 shrink-0" />
-              {t('modals.sharedSession')}
+              {"Shared Session"}
             </h3>
-            <p className="text-white/80 text-sm font-sans">{t('modals.sharedSessionDesc')}</p>
+            <p className="text-white/80 text-sm font-sans">{"Someone shared a dance lesson session with you:"}</p>
 
             <div className="bg-black/30 p-5 rounded-2xl border border-white/10 space-y-3.5">
               <div>
-                <span className="text-xs font-bold uppercase tracking-widest text-brand block">{t('modals.sharedTitle')}</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-brand block">{"Title"}</span>
                 <span className="text-sm font-semibold text-white">{importPreview.title}</span>
               </div>
               {importPreview.subtitle && (
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{t('modals.sharedSubtitle')}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{"Subtitle"}</span>
                   <span className="text-sm text-white/80">{importPreview.subtitle}</span>
                 </div>
               )}
               {importPreview.notes && (
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{t('modals.sharedNotesShared')}</span>
-                  <span className="text-xs text-green-400 font-semibold block mt-1 font-sans">{t('modals.sharedNotesIncluded')}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{"Notes Shared"}</span>
+                  <span className="text-xs text-green-400 font-semibold block mt-1 font-sans">{"✓ NOTES SHARED"}</span>
                 </div>
               )}
               {importPreview.report && (
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{t('modals.sharedReportShared')}</span>
-                  <span className="text-xs text-green-400 font-semibold block mt-1 font-sans">{t('modals.sharedReportIncluded')}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{"Report Shared"}</span>
+                  <span className="text-xs text-green-400 font-semibold block mt-1 font-sans">{"✓ Consolidated Session Report Included"}</span>
                 </div>
               )}
               {importPreview.transcripts && (
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{t('modals.sharedClipsShared')}</span>
-                  <span className="text-xs text-blue-400 font-semibold block mt-1 font-sans">{t('modals.sharedClipsIncluded', { count: importPreview.transcripts.length })}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{"Clips Shared"}</span>
+                  <span className="text-xs text-blue-400 font-semibold block mt-1 font-sans">{`✓ ${importPreview.transcripts.length} Audio Clip Transcripts Included`}</span>
                 </div>
               )}
               {importPreview.parsedMediaFiles && importPreview.parsedMediaFiles.filter((f: any) => !f.isAudioEntry).length > 0 && (
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{t('modals.sharedMediaShared')}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-brand block">{"Media Shared"}</span>
                   <span className="text-xs text-purple-400 font-semibold block mt-1 font-sans">
-                    {t('modals.sharedMediaIncluded', { count: importPreview.parsedMediaFiles.filter((f: any) => !f.isAudioEntry).length })}
+                    {`✓ ${importPreview.parsedMediaFiles.filter((f: any) => !f.isAudioEntry).length} Media Item(s) Included`}
                   </span>
                 </div>
               )}
@@ -2626,13 +2288,13 @@ export default function App() {
                 }}
                 className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px]"
               >
-                {t('modals.rejectBtn')}
+                {"Reject"}
               </button>
               <button
                 onClick={handleImportSession}
                 className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand/90 text-bg-dark transition-colors shadow-lg shadow-brand/30 min-h-[44px]"
               >
-                {t('modals.importSessionBtn')}
+                {"Import Session"}
               </button>
             </div>
           </div>
@@ -2655,16 +2317,16 @@ export default function App() {
           <button
             onClick={() => navigateTo('list', null, null)}
             className="hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-xl"
-            title={t('goToHome')}
+            title={"Go to Home"}
           >
-            <ZouttyIcon className="w-10 h-10 text-brand shrink-0" />
+            <LMPLOGIcon className="w-10 h-10 text-brand shrink-0" />
           </button>
           <div className="flex flex-col justify-center">
             <h1 className="text-lg uppercase tracking-[0.2em] text-brand font-bold leading-none">
-              {t('appName')}
+              {"LMPLOG"}
             </h1>
             <p className="text-xs font-bold tracking-tight text-white/90 mt-1 leading-none">
-              {t('appSubtitle')}
+              {"Session Notes"}
             </p>
           </div>
         </div>
@@ -2674,7 +2336,7 @@ export default function App() {
             <button
               onClick={() => setShowAppSettings(true)}
               className="w-10 h-10 flex items-center justify-center glass rounded-full hover:bg-white/10 text-white/40 hover:text-brand transition-colors"
-              title="Zoutty Settings"
+              title="LMPLOG Settings"
             >
               <Settings className="w-5 h-5 text-brand" />
             </button>
@@ -2682,72 +2344,15 @@ export default function App() {
           {view === 'detail' && selectedSession && (
             <>
               <button
-                onClick={async () => {
-                  if (selectedSession.isDemo) {
-                    showToast(t('onboarding.demoTooltipShare'), false);
-                  } else {
-                    const report = await db.getSessionFinalReport(selectedSession.id);
-                    const hasReport = !!selectedSession.summary && !!report;
-                    const hasNotes = !!selectedSession.notes;
-                    const hasTranscripts = Object.values(audioEntries).some(e => e.sessionId === selectedSession.id && !!e.transcript);
-
-                    const hasStrictSummary = hasReport && !!report.report?.strictSummary && report.report.strictSummary.length > 0;
-                    const hasDrills = hasReport && !!report.report?.expandedInsights?.drills && report.report.expandedInsights.drills.length > 0;
-                    const hasHomework = hasReport && !!report.report?.expandedInsights?.homework && report.report.expandedInsights.homework.length > 0;
-                    const hasTechnical = hasReport && !!report.report?.expandedInsights?.technicalExpansion && report.report.expandedInsights.technicalExpansion.length > 0;
-                    const hasEmotional = hasReport && !!report.report?.expandedInsights?.emotionalNotes && report.report.expandedInsights.emotionalNotes.length > 0;
-                    const hasAudios = Object.values(audioEntries).some(e => e.sessionId === selectedSession.id && !!e.audioBlob);
-                    const hasMedia = sessionMedia.length > 0 || hasAudios;
-
-                    const hasOldShareCode = !!selectedSession.shareId && !selectedSession.shareMethod;
-                    const defaultViewState = (selectedSession.shareMethod === 'code' || hasOldShareCode) ? 'active_code' 
-                                           : selectedSession.shareMethod === 'file' ? 'active_file' 
-                                           : 'checklist';
-
-                    setShareModal({
-                      sessionId: selectedSession.id,
-                      shareReport: selectedSession.sharedContent ? selectedSession.sharedContent.report : hasReport,
-                      shareNotes: selectedSession.sharedContent ? selectedSession.sharedContent.notes : hasNotes,
-                      shareTranscripts: selectedSession.sharedContent ? selectedSession.sharedContent.transcripts : hasTranscripts,
-                      shareStrictSummary: hasStrictSummary,
-                      shareDrills: hasDrills,
-                      shareHomework: hasHomework,
-                      shareTechnical: hasTechnical,
-                      shareEmotional: hasEmotional,
-                      shareMedia: selectedSession.sharedContent ? selectedSession.sharedContent.media : hasMedia,
-                      availableReport: hasReport,
-                      availableNotes: hasNotes,
-                      availableTranscripts: hasTranscripts,
-                      availableStrictSummary: hasStrictSummary,
-                      availableDrills: hasDrills,
-                      availableHomework: hasHomework,
-                      availableTechnical: hasTechnical,
-                      availableEmotional: hasEmotional,
-                      availableMedia: hasMedia,
-                      generatedLink: selectedSession.shareId ? selectedSession.shareId : undefined,
-                      shareCode: selectedSession.shareId ? selectedSession.shareId : undefined,
-                      shareTimestamp: selectedSession.shareTimestamp,
-                      viewState: defaultViewState,
-                      shareMethod: selectedSession.shareMethod || (hasOldShareCode ? 'code' : undefined),
-                      sharedContent: selectedSession.sharedContent
-                    });
-                  }
-                }}
-                className={`w-10 h-10 flex items-center justify-center glass rounded-full transition-colors ${selectedSession.shareId ? 'bg-brand/20 text-brand shadow-sm shadow-brand/20' : 'hover:bg-brand/20 text-brand'}`}
-                title={t('session.shareSession')}
-              >
-                <Share2 className="w-5 h-5" />
-              </button>
-              <button
                 onClick={() => {
                   if (selectedSession.isDemo) {
-                    showToast(t('onboarding.demoTooltipExport'), false);
+                    showToast("💡 You can export this session to a PDF document.", false);
                   } else {
                     setShowExportConfirm(true);
                   }
                 }}
                 className="w-10 h-10 flex items-center justify-center glass rounded-full hover:bg-brand/20 text-brand transition-colors"
-                title={t('session.exportToPDF')}
+                title={"Export to PDF"}
               >
                 <Download className="w-5 h-5" />
               </button>
@@ -2767,7 +2372,7 @@ export default function App() {
               className="flex items-center gap-2 px-4 py-2 bg-brand/10 hover:bg-brand/20 text-brand font-bold rounded-xl border border-brand/20 transition-all font-sans text-sm shadow-sm"
             >
               <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">{t('installApp')}</span>
+              <span className="hidden sm:inline">{"Install App"}</span>
             </button>
           )}
         </div>
@@ -2779,7 +2384,7 @@ export default function App() {
             {selectedGroupId && (
               <div className="flex items-center gap-2 text-sm font-bold text-white/40 uppercase tracking-widest">
                 <FolderOpen className="w-4 h-4 text-blue-400" />
-                <span>{t('home.folderBreadcrumb', { name: groups.find(g => g.id === selectedGroupId)?.name || '' })}</span>
+                <span>{`Folder: ${groups.find(g => g.id === selectedGroupId)?.name || ''}`}</span>
               </div>
             )}
 
@@ -2790,7 +2395,7 @@ export default function App() {
                 className={`py-3.5 glass bg-brand/10 border-brand/20 text-brand font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand/20 transition-all rounded-2xl shadow-lg glow-brand flex-1 min-h-[52px] ${selectedGroupId ? 'py-4 text-base' : ''}`}
               >
                 <Plus className="w-4 h-4" />
-                {t('home.newSession')}
+                {"Session"}
               </button>
               {!selectedGroupId && (
                 <>
@@ -2799,15 +2404,9 @@ export default function App() {
                     className="py-3.5 glass bg-blue-500/10 border-blue-500/20 text-blue-400 font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-500/20 transition-all rounded-2xl shadow-lg shadow-blue-500/10 flex-1 min-h-[52px]"
                   >
                     <FolderPlus className="w-4 h-4" />
-                    {t('home.newFolder')}
+                    {"Folder"}
                   </button>
-                  <button
-                    onClick={() => setShowImportCodeModal(true)}
-                    className="w-[52px] h-[52px] glass bg-purple-500/10 border-purple-500/20 text-purple-400 font-bold flex items-center justify-center hover:bg-purple-500/20 transition-all rounded-2xl shadow-lg shadow-purple-500/10 shrink-0"
-                    title={t('home.importBtnTitle')}
-                  >
-                    <Download className="w-5 h-5" />
-                  </button>
+
                 </>
               )}
             </div>
@@ -2816,31 +2415,31 @@ export default function App() {
             {!selectedGroupId && groups.filter(g => g.id !== 'root').length > 0 && (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-white/30">{t('home.foldersHeading')}</h2>
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-white/30">{"Folders"}</h2>
 
                   {/* Folder Sorting controls bar */}
                   <div className="flex items-center gap-4 text-xs text-white/40 font-sans font-semibold">
-                    <span className="hidden sm:inline">{t('home.sortBy')}</span>
+                    <span className="hidden sm:inline">{"Sort by:"}</span>
                     <div className="flex gap-3.5">
                       <button
                         onClick={() => handleFolderSortClick('date')}
                         className={`hover:text-white transition-colors flex items-center gap-1 ${folderSortBy === 'date' ? 'text-brand font-bold' : ''}`}
                       >
-                        {t('home.sortRecent')}
+                        {"Recent"}
                         {folderSortBy === 'date' && (folderSortOrder === 'asc' ? ' ↑' : ' ↓')}
                       </button>
                       <button
                         onClick={() => handleFolderSortClick('name')}
                         className={`hover:text-white transition-colors flex items-center gap-1 ${folderSortBy === 'name' ? 'text-brand font-bold' : ''}`}
                       >
-                        {t('home.sortName')}
+                        {"Name"}
                         {folderSortBy === 'name' && (folderSortOrder === 'asc' ? ' ↑' : ' ↓')}
                       </button>
                       <button
                         onClick={() => handleFolderSortClick('created')}
                         className={`hover:text-white transition-colors flex items-center gap-1 ${folderSortBy === 'created' ? 'text-brand font-bold' : ''}`}
                       >
-                        {t('home.sortCreated')}
+                        {"Created"}
                         {folderSortBy === 'created' && (folderSortOrder === 'asc' ? ' ↑' : ' ↓')}
                       </button>
                     </div>
@@ -2860,7 +2459,7 @@ export default function App() {
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-semibold truncate text-white">{group.name}</h3>
                         <p className="text-xs text-white/40 mt-0.5 font-medium font-sans">
-                          {t('home.sessionCount', { count: sessions.filter(s => s.groupId === group.id).length })}
+                          {`${sessions.filter(s => s.groupId === group.id).length} sessions`}
                         </p>
                       </div>
                       <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
@@ -2889,32 +2488,32 @@ export default function App() {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
                   <h2 className="text-sm font-bold uppercase tracking-widest text-white/30">
-                    {selectedGroupId ? t('home.sessionsInFolderHeading') : t('home.sessionsHeading')}
+                    {selectedGroupId ? "Sessions in Folder" : "Sessions"}
                   </h2>
 
                   {/* Sorting controls bar */}
                   <div className="flex items-center gap-4 text-xs text-white/40 font-sans font-semibold">
-                    <span className="hidden sm:inline">{t('home.sortBy')}</span>
+                    <span className="hidden sm:inline">{"Sort by:"}</span>
                     <div className="flex gap-3.5">
                       <button
                         onClick={() => handleSessionSortClick('date')}
                         className={`hover:text-white transition-colors flex items-center gap-1 ${sessionSortBy === 'date' ? 'text-brand font-bold' : ''}`}
                       >
-                        {t('home.sortRecent')}
+                        {"Recent"}
                         {sessionSortBy === 'date' && (sessionSortOrder === 'asc' ? ' ↑' : ' ↓')}
                       </button>
                       <button
                         onClick={() => handleSessionSortClick('name')}
                         className={`hover:text-white transition-colors flex items-center gap-1 ${sessionSortBy === 'name' ? 'text-brand font-bold' : ''}`}
                       >
-                        {t('home.sortName')}
+                        {"Name"}
                         {sessionSortBy === 'name' && (sessionSortOrder === 'asc' ? ' ↑' : ' ↓')}
                       </button>
                       <button
                         onClick={() => handleSessionSortClick('created')}
                         className={`hover:text-white transition-colors flex items-center gap-1 ${sessionSortBy === 'created' ? 'text-brand font-bold' : ''}`}
                       >
-                        {t('home.sortCreated')}
+                        {"Created"}
                         {sessionSortBy === 'created' && (sessionSortOrder === 'asc' ? ' ↑' : ' ↓')}
                       </button>
                     </div>
@@ -2928,13 +2527,13 @@ export default function App() {
                         <div className="absolute inset-0 bg-brand/20 blur-3xl rounded-full animate-pulse" />
                         <Sparkles className="w-full h-full text-brand/60 drop-shadow-[0_0_15px_rgba(45,212,191,0.5)] animate-pulse" style={{ animationDuration: '3s' }} />
                       </div>
-                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 tracking-tight">{t('home.emptyHomeTitle')}</h3>
-                      <p className="text-sm sm:text-base text-white/50 max-w-sm leading-relaxed">{t('home.emptyHomeDesc')}</p>
+                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 tracking-tight">{"Ready for the next lesson?"}</h3>
+                      <p className="text-sm sm:text-base text-white/50 max-w-sm leading-relaxed">{"Tap the '+ Session' button to set up a new session."}</p>
                     </div>
                   ) : (
                     <div className="glass p-12 text-center text-white/20">
                       <Folder className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p>{t('home.noSessionsInFolder')}</p>
+                      <p>{"No sessions in this folder."}</p>
                     </div>
                   )
                 ) : (
@@ -2954,7 +2553,7 @@ export default function App() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-semibold truncate text-white">{session.title}</h3>
-                          <p className="text-xs text-white/40 mt-1 truncate">{session.subtitle || t('home.sessionDefaultSubtitle')}</p>
+                          <p className="text-xs text-white/40 mt-1 truncate">{session.subtitle || "Lesson"}</p>
                         </div>
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <button
@@ -2963,7 +2562,7 @@ export default function App() {
                               setMoveSessionModal({ sessionId: session.id, currentGroupId: session.groupId });
                             }}
                             className="p-3 bg-white/5 text-white/60 hover:text-brand hover:bg-white/10 rounded-xl transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]"
-                            title={t('home.moveToFolder')}
+                            title={"Move to folder"}
                           >
                             <Folder className="w-5 h-5 shrink-0" />
                           </button>
@@ -2973,7 +2572,7 @@ export default function App() {
                               requestDeleteSession(session.id, session.title);
                             }}
                             className="p-3 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]"
-                            title={t('home.deleteSession')}
+                            title={"Delete"}
                           >
                             <Trash2 className="w-5 h-5 shrink-0" />
                           </button>
@@ -2988,22 +2587,13 @@ export default function App() {
         ) : selectedSession && (
           <SessionDetail
             session={selectedSession}
-            entries={Object.values(audioEntries).filter(e => e.sessionId === selectedSession.id).sort((a, b) => b.timestamp - a.timestamp)}
+            entries={(Object.values(audioEntries) as AudioEntry[]).filter(e => e.sessionId === selectedSession.id).sort((a, b) => b.timestamp - a.timestamp)}
             processingIds={processingIds}
-            onRecording={(blob, lang) => selectedSession.isDemo ? showToast(t('onboarding.demoTooltipRecord'), false) : addAudioEntry(selectedSession.id, blob, lang, 'recording')}
-            onUpload={(e, lang) => selectedSession.isDemo ? showToast(t('onboarding.demoTooltipUpload'), false) : handleFileUpload(e, lang)}
-            onConsolidate={selectedSession.isDemo ? () => showToast(t('onboarding.demoTooltipConsolidate'), false) : handleConsolidate}
+            onRecording={(blob, lang) => selectedSession.isDemo ? showToast("💡 Tap here to record a live audio. We recommend keeping clips under 90 seconds.", false) : addAudioEntry(selectedSession.id, blob, lang, 'recording')}
+            onUpload={(e, lang) => selectedSession.isDemo ? showToast("💡 Tap here to upload an audio file.", false) : handleFileUpload(e, lang)}
             onUpdateSession={(changes) => updateSession(selectedSession.id, changes)}
-            onUpdateEntry={(id, changes) => selectedSession.isDemo ? showToast(t('onboarding.demoTooltipEdit'), false) : updateAudioEntry(id, changes)}
-            onDeleteEntry={(id) => selectedSession.isDemo ? showToast(t('onboarding.demoTooltipDelete'), false) : requestDeleteAudio(id, 'Audio Entry')}
-            onProcessEntry={async (id) => {
-              if (selectedSession.isDemo) {
-                showToast(t('onboarding.demoTooltipConsolidate'), false);
-              } else {
-                await handleProcessEntry(id);
-              }
-            }}
-            onRequestReprocess={(id) => selectedSession.isDemo ? showToast(t('onboarding.demoTooltipReprocess'), false) : setReprocessModal(id)}
+            onUpdateEntry={(id, changes) => selectedSession.isDemo ? showToast("💡 You can edit this text directly.", false) : updateAudioEntry(id, changes)}
+            onDeleteEntry={(id) => selectedSession.isDemo ? showToast("💡 This deletes the item.", false) : requestDeleteAudio(id, 'Audio Entry')}
             showToast={showToast}
             groups={groups}
             glossaries={glossaries}
@@ -3025,12 +2615,9 @@ function SessionDetail({
   processingIds,
   onRecording,
   onUpload,
-  onConsolidate,
   onUpdateSession,
   onUpdateEntry,
   onDeleteEntry,
-  onProcessEntry,
-  onRequestReprocess,
   showToast,
   groups,
   glossaries,
@@ -3043,12 +2630,9 @@ function SessionDetail({
   processingIds: Set<string>;
   onRecording: (blob: Blob, lang: Language) => void;
   onUpload: (e: React.ChangeEvent<HTMLInputElement>, lang: Language) => void;
-  onConsolidate: () => void;
   onUpdateSession: (changes: Partial<Session>) => void;
   onUpdateEntry: (id: string, changes: Partial<AudioEntry>) => void;
   onDeleteEntry: (entryId: string) => void;
-  onProcessEntry: (entryId: string) => Promise<void>;
-  onRequestReprocess: (id: string) => void;
   showToast: (msg: string, isError?: boolean) => void;
   groups: SessionGroup[];
   glossaries: DanceGlossary[];
@@ -3056,7 +2640,7 @@ function SessionDetail({
   mediaItems: SessionMedia[];
   onMediaChange: (items: SessionMedia[]) => void;
 }) {
-  const { t } = useTranslation();
+  
   const [isRecording, setIsRecording] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -3075,7 +2659,7 @@ function SessionDetail({
   // Revoke object URLs on cleanup
   useEffect(() => {
     return () => {
-      Object.values(mediaObjectUrls).forEach(url => URL.revokeObjectURL(url));
+      (Object.values(mediaObjectUrls) as string[]).forEach(url => URL.revokeObjectURL(url));
     };
   }, []);
 
@@ -3154,7 +2738,7 @@ function SessionDetail({
         setIsAddingMedia(false);
       } catch (err: any) {
         setIsAddingMedia(false);
-        if (err?.name !== 'AbortError') showToast(t('session.galleryFailedAttach'), true);
+        if (err?.name !== 'AbortError') showToast("Failed to attach media.", true);
       }
     } else {
       // Blob Mode: standard file input for Safari/iOS/Firefox
@@ -3163,7 +2747,7 @@ function SessionDetail({
   };
 
   const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(e.target.files || []) as File[];
     if (!files.length) return;
     setIsAddingMedia(true);
     const MAX_BLOB_SIZE = 500 * 1024 * 1024; // 500 MB hard cap
@@ -3181,20 +2765,17 @@ function SessionDetail({
       for (const file of files) {
         // Validate type
         if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-          showToast(t('session.galleryUnsupportedType'), true);
+          showToast("This file type is not supported. Please choose an image or video.", true);
           continue;
         }
         // Hard cap
         if (file.size > MAX_BLOB_SIZE) {
-          showToast(t('session.galleryFileTooLarge', { size: formatBytes(file.size) }), true);
+          showToast(`This file is too large to attach (${formatBytes(file.size)}). Please choose a smaller file.`, true);
           continue;
         }
         // Storage warning
         if (availableBytes !== null && availableBytes < LOW_STORAGE_THRESHOLD) {
-          showToast(t('session.galleryStorageWarning', {
-            available: formatBytes(availableBytes),
-            size: formatBytes(file.size)
-          }), true);
+          showToast(`Low storage available (${formatBytes(availableBytes)} free). This file (${formatBytes(file.size)}) may not save reliably. Consider freeing up space.`, true);
         }
 
         let blobToStore: Blob = file;
@@ -3226,7 +2807,7 @@ function SessionDetail({
       if (newItems.length > 0) onMediaChange([...mediaItems, ...newItems]);
     } catch (err) {
       console.error('[Gallery] Failed to attach media:', err);
-      showToast(t('session.galleryFailedAttach'), true);
+      showToast("Failed to attach media.", true);
     } finally {
       setIsAddingMedia(false);
       e.target.value = '';
@@ -3292,7 +2873,7 @@ function SessionDetail({
 
   const startRecording = async () => {
     if (session.isDemo) {
-      showToast(t('onboarding.demoTooltipRecord'), false);
+      showToast("💡 Tap here to record a live audio. We recommend keeping clips under 90 seconds.", false);
       return;
     }
     try {
@@ -3368,7 +2949,7 @@ function SessionDetail({
       }, 1000);
     } catch (err) {
       console.error('Error accessing microphone:', err);
-      showToast(t('toast.micDenied'), true);
+      showToast("Microphone access denied or not available.", true);
     }
   };
 
@@ -3407,7 +2988,7 @@ function SessionDetail({
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Print-only Logo */}
       <div className="hidden print:block text-center pb-4 border-b border-gray-200">
-        <img src="/zouttyLogoHoriz.png" alt="Zoutty" className="h-10 mx-auto" />
+        <img src="/lmplogLogoHoriz.png" alt="LMPLOG" className="h-10 mx-auto" />
       </div>
       {/* Session Header: date (white) + optional editable subtitle */}
       <div>
@@ -3426,7 +3007,7 @@ function SessionDetail({
           <button
             onClick={() => {
               if (session.isDemo) {
-                showToast(t('onboarding.demoTooltipGlossary'), false);
+                showToast("💡 This detects the dance style automatically and applies the correct terminology (glossary) to the AI report.", false);
               } else {
                 setTempGroupId(session.groupId || '');
                 setTempGlossaryId(session.glossaryId || 'auto');
@@ -3435,13 +3016,13 @@ function SessionDetail({
               }
             }}
             className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-brand/10 border border-brand/20 hover:bg-brand/20 transition-all text-brand font-medium cursor-pointer"
-            title={t('session.sessionSettings')}
+            title={"Session Settings"}
           >
             <Music className="w-3 h-3 shrink-0" />
             <span>
               {session.glossaryId === 'auto'
-                ? t('sessionSettings.glossaryAuto')
-                : (session.glossaryId === 'other' ? (session.customGlossaryStyle || t('sessionSettings.glossaryOther')) : (glossaries.find(g => g.id === session.glossaryId)?.name || 'Brazilian Zouk'))
+                ? "Auto-Detect (AI)"
+                : (session.glossaryId === 'other' ? (session.customGlossaryStyle || "Other (Specify...)") : (glossaries.find(g => g.id === session.glossaryId)?.name || 'Brazilian Zouk'))
               }
             </span>
           </button>
@@ -3461,13 +3042,13 @@ function SessionDetail({
             className="text-xl font-bold text-white cursor-text hover:text-white/80 transition-colors flex items-center gap-2 group w-max"
             onClick={() => {
               if (session.isDemo) {
-                showToast(t('onboarding.demoTooltipEdit'), false);
+                showToast("💡 You can edit this text directly.", false);
               } else {
                 setTempTitle(session.title);
                 setIsEditingTitle(true);
               }
             }}
-            title={t('session.editTitleHint')}
+            title={"Edit title"}
           >
             {session.title}
             <Edit2 className="w-4 h-4 text-brand opacity-0 group-hover:opacity-80 transition-opacity shrink-0 cursor-pointer print-hide-icon" />
@@ -3479,7 +3060,7 @@ function SessionDetail({
           <div className="flex items-center gap-2 mt-2">
             <input
               autoFocus
-              placeholder={t('session.addSubtitle')}
+              placeholder={"Add a subtitle…"}
               value={tempSubtitle}
               onChange={(e) => setTempSubtitle(e.target.value)}
               onBlur={handleSubtitleSubmit}
@@ -3492,7 +3073,7 @@ function SessionDetail({
             <button
               onClick={() => {
                 if (session.isDemo) {
-                  showToast(t('onboarding.demoTooltipEdit'), false);
+                  showToast("💡 You can edit this text directly.", false);
                 } else {
                   setIsEditingSubtitle(true);
                 }
@@ -3502,7 +3083,7 @@ function SessionDetail({
               {session.subtitle ? (
                 <span>{session.subtitle}</span>
               ) : (
-                <span className="italic text-white/20 group-hover:text-white/40">{t('session.subtitlePlaceholder')}</span>
+                <span className="italic text-white/20 group-hover:text-white/40">{"Lesson"}</span>
               )}
               <Edit2 className="w-3.5 h-3.5 text-brand opacity-0 group-hover:opacity-80 transition-opacity shrink-0 print-hide-icon" />
             </button>
@@ -3510,20 +3091,20 @@ function SessionDetail({
               <button
                 onClick={() => {
                   if (session.isDemo) {
-                    showToast(t('onboarding.demoTooltipReorder'), false);
+                    showToast("💡 You can reorder the items in this session.", false);
                   } else {
                     setIsReordering(!isReordering);
                   }
                 }}
                 className={`p-2 rounded-xl border transition-colors flex items-center justify-center ${isReordering ? 'bg-brand/20 border-brand text-brand shadow-sm shadow-brand/20' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/80'} min-h-[38px] min-w-[38px]`}
-                title={isReordering ? t('session.disableReorder') : t('session.enableReorder')}
+                title={isReordering ? "Disable reorder mode" : "Enable reorder mode"}
               >
                 <GripHorizontal className="w-4 h-4" />
               </button>
               <button
                 onClick={() => {
                   if (session.isDemo) {
-                    showToast(t('onboarding.demoTooltipGallery'), false);
+                    showToast("💡 You can attach videos and photos to the session here.", false);
                   } else {
                     setIsGalleryOpen(true);
                   }
@@ -3532,14 +3113,14 @@ function SessionDetail({
                   ? 'bg-purple-500/20 border-purple-500/40 text-purple-300 shadow-sm'
                   : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/80'
                   }`}
-                title={t('session.openGallery')}
+                title={"Open media gallery"}
               >
                 <Images className={`w-4 h-4 ${mediaItems.length > 0 ? '' : 'text-brand'}`} />
               </button>
               <button
                 onClick={() => {
                   if (session.isDemo) {
-                    showToast(t('onboarding.demoTooltipSettings'), false);
+                    showToast("💡 You can configure the dance style and language here.", false);
                   } else {
                     setTempGroupId(session.groupId || '');
                     setTempGlossaryId(session.glossaryId || 'auto');
@@ -3548,7 +3129,7 @@ function SessionDetail({
                   }
                 }}
                 className="p-2 rounded-xl border bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/80 transition-colors flex items-center justify-center min-h-[38px] min-w-[38px]"
-                title={t('session.sessionSettings')}
+                title={"Session Settings"}
               >
                 <SlidersHorizontal className="w-4 h-4 text-brand" />
               </button>
@@ -3568,8 +3149,7 @@ function SessionDetail({
           onToggleReordering={() => setIsReordering(false)}
           onUpdateEntry={onUpdateEntry}
           onDeleteEntry={onDeleteEntry}
-          onProcessEntry={onProcessEntry}
-          onRequestReprocess={onRequestReprocess}
+
           cardOrder={session.cardOrder}
           onUpdateOrder={(newOrder) => onUpdateSession({ cardOrder: newOrder })}
           sessionNotes={session.notes}
@@ -3595,7 +3175,7 @@ function SessionDetail({
           onClick={(e) => {
             if (session.isDemo) {
               e.preventDefault();
-              showToast(t('onboarding.demoTooltipUpload'), false);
+              showToast("💡 Tap here to upload an audio file.", false);
             }
           }}
           className="cursor-pointer flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-full transition-colors shadow-sm"
@@ -3610,7 +3190,7 @@ function SessionDetail({
           <button
             onClick={cancelRecording}
             className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-full transition-colors shadow-sm animate-in fade-in zoom-in duration-200"
-            title={t('session.cancelRecording')}
+            title={"Cancel recording"}
           >
             <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -3626,19 +3206,12 @@ function SessionDetail({
             ? 'bg-red-500 text-white hover:bg-red-600 scale-95 animate-pulse'
             : 'bg-brand text-black hover:bg-brand-light hover:scale-105'
             } min-h-[64px] min-w-[64px]`}
-          title={isRecording ? t('session.stopRecording') : t('session.startRecording')}
+          title={isRecording ? "Stop recording and save" : "Start recording"}
         >
           {isRecording ? <Square className="w-6 h-6 sm:w-8 sm:h-8" /> : <Mic className="w-6 h-6 sm:w-8 sm:h-8" />}
         </button>
 
-        <button
-          id="consolidateBtn"
-          onClick={onConsolidate}
-          disabled={entries.length === 0}
-          className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-20 transition-colors rounded-full shadow-sm disabled:cursor-not-allowed"
-        >
-          <Wand2 className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
+
       </div>
 
       {/* Settings Drawer */}
@@ -3657,7 +3230,7 @@ function SessionDetail({
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <SlidersHorizontal className="w-5 h-5 text-brand" />
-                {t('sessionSettings.drawerTitle')}
+                {"Session Settings"}
               </h3>
               <button
                 onClick={handleCancelSettings}
@@ -3673,14 +3246,14 @@ function SessionDetail({
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-white/40 flex items-center gap-1.5">
                   <Folder className="w-3.5 h-3.5 text-brand" />
-                  {t('sessionSettings.folderLabel')}
+                  {"Folder"}
                 </label>
                 <CustomSelect
                   value={tempGroupId || ''}
                   onChange={setTempGroupId}
                   position="relative"
                   options={[
-                    { value: '', label: t('sessionSettings.folderNone') },
+                    { value: '', label: "None (Root)" },
                     ...groups.map(g => ({ value: g.id, label: g.name }))
                   ]}
                 />
@@ -3690,16 +3263,16 @@ function SessionDetail({
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-white/40 flex items-center gap-1.5">
                   <BookOpen className="w-3.5 h-3.5 text-brand" />
-                  {t('sessionSettings.glossaryLabel')}
+                  {"Dance Style Glossary"}
                 </label>
                 <CustomSelect
                   value={tempGlossaryId}
                   onChange={setTempGlossaryId}
                   position="relative"
                   options={[
-                    { value: 'auto', label: t('sessionSettings.glossaryAuto') },
+                    { value: 'auto', label: "Auto-Detect (AI)" },
                     ...glossaries.map(g => ({ value: g.id, label: g.name })),
-                    { value: 'other', label: t('sessionSettings.glossaryOther') }
+                    { value: 'other', label: "Other (Specify...)" }
                   ]}
                 />
               </div>
@@ -3707,10 +3280,10 @@ function SessionDetail({
               {/* Specify Custom Dance Style */}
               {tempGlossaryId === 'other' && (
                 <div className="flex flex-col gap-1.5 animate-in slide-in-from-top-1 duration-200">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-brand font-semibold">{t('sessionSettings.specifyDanceStyleLabel')}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-brand font-semibold">{"Specify Dance Style"}</label>
                   <input
                     type="text"
-                    placeholder={t('sessionSettings.specifyDanceStylePlaceholder')}
+                    placeholder={"e.g. Samba de Gafieira, West Coast Swing..."}
                     value={tempCustomGlossaryStyle}
                     onChange={(e) => setTempCustomGlossaryStyle(e.target.value)}
                     className="bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand/50 transition-colors w-full placeholder:text-white/20"
@@ -3728,13 +3301,13 @@ function SessionDetail({
                   onClick={handleCancelSettings}
                   className="flex-1 px-4 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors text-white text-xs min-h-[40px]"
                 >
-                  {t('sessionSettings.cancelBtn')}
+                  {"Cancel"}
                 </button>
                 <button
                   onClick={handleConfirmSettings}
                   className="flex-1 px-4 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand-light text-black transition-colors text-xs min-h-[40px]"
                 >
-                  {t('sessionSettings.confirmBtn')}
+                  {"Confirm"}
                 </button>
               </div>
               <button
@@ -3744,7 +3317,7 @@ function SessionDetail({
                 className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10 hover:text-white transition-all text-[11px] font-bold shadow-sm"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                {t('sessionSettings.deleteSessionBtn')}
+                {"Delete Session"}
               </button>
             </div>
           </div>
@@ -3778,9 +3351,9 @@ function SessionDetail({
             <div className="flex items-center justify-between border-b border-white/5 pb-3 shrink-0">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Images className="w-5 h-5 text-purple-400" />
-                {t('session.galleryTitle')}
+                {"Media Gallery"}
                 {mediaItems.length > 0 && (
-                  <span className="text-xs font-normal text-white/40 ml-1">{t('session.galleryItemCount', { count: mediaItems.length })}</span>
+                  <span className="text-xs font-normal text-white/40 ml-1">{`${mediaItems.length} item(s)`}</span>
                 )}
               </h3>
               <div className="flex items-center gap-2">
@@ -3792,7 +3365,7 @@ function SessionDetail({
                       : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
                       }`}
                   >
-                    {isDeleteMode ? t('session.galleryDoneBtn') : t('session.galleryEditBtn')}
+                    {isDeleteMode ? "Done" : "Edit"}
                   </button>
                 )}
                 <button
@@ -3810,7 +3383,7 @@ function SessionDetail({
             {/* Storage info note */}
             <div className="shrink-0 text-[11px] text-white/40 bg-white/5 border border-white/8 rounded-xl px-3 py-2.5 leading-relaxed flex items-start gap-2">
               <AlertTriangle className="w-3.5 h-3.5 text-yellow-400/70 mt-0.5 shrink-0" />
-              <span>{isFileAccessSupported ? t('session.galleryStorageNote') : t('session.galleryBlobNote')}</span>
+              <span>{isFileAccessSupported ? "Photos and videos are stored only on your device. Backups include a link to your files - if you move or delete them locally, the links will break." : "Photos and videos are saved directly in your browser storage. Backups will include the files, which may increase the backup size significantly."}</span>
             </div>
 
             {/* Content */}
@@ -3823,7 +3396,7 @@ function SessionDetail({
               {mediaItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-white/30 gap-3">
                   <Images className="w-10 h-10 opacity-30" />
-                  <p className="text-sm">{t('session.galleryEmpty')}</p>
+                  <p className="text-sm">{"No media attached to this session yet."}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -3850,7 +3423,7 @@ function SessionDetail({
                             }}
                           >
                             <LinkIcon className="w-6 h-6 text-red-400/60" />
-                            <p className="text-[9px] text-white/40 leading-tight">{t('session.galleryBrokenLink')}</p>
+                            <p className="text-[9px] text-white/40 leading-tight">{"File not found - it may have been moved or deleted."}</p>
                           </button>
                         ) : url ? (
                           <button
@@ -3890,7 +3463,7 @@ function SessionDetail({
                           }}
                           className={`absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-600 border border-red-500 text-white transition-all flex items-center justify-center z-10 ${isDeleteMode ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'
                             }`}
-                          title={t('session.galleryDeleteItem')}
+                          title={"Remove this media item"}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -3914,9 +3487,9 @@ function SessionDetail({
                 className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl border border-dashed border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 hover:border-purple-400/60 transition-all text-xs font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAddingMedia ? (
-                  <><div className="w-4 h-4 border-2 border-purple-400/40 border-t-purple-400 rounded-full animate-spin" />{t('session.galleryCompressingImage')}</>
+                  <><div className="w-4 h-4 border-2 border-purple-400/40 border-t-purple-400 rounded-full animate-spin" />{"Optimizing image..."}</>
                 ) : (
-                  <><Images className="w-4 h-4" />{t('session.galleryAddBtn')}</>
+                  <><Images className="w-4 h-4" />{"Add Photo or Video"}</>
                 )}
               </button>
             </div>
@@ -3940,7 +3513,7 @@ function SessionDetail({
                 e.stopPropagation();
                 setMediaToDelete(lightboxItem);
               }}
-              title={t('session.galleryDeleteItem')}
+              title={"Remove this media item"}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -3998,17 +3571,17 @@ function SessionDetail({
           <div className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold flex items-center gap-2 text-red-400">
               <Trash2 className="w-5 h-5 text-red-500" />
-              {t('modals.confirmDeletion')}
+              {"Confirm Deletion"}
             </h3>
             <p className="text-white/70 text-sm">
-              {t('session.galleryConfirmDelete')}
+              {"Remove this item from the session?"}
             </p>
             <div className="flex gap-3 justify-end items-center mt-6">
               <button
                 onClick={() => setMediaToDelete(null)}
                 className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] cursor-pointer text-xs"
               >
-                {t('modals.cancelBtn')}
+                {"Cancel"}
               </button>
               <button
                 onClick={async () => {
@@ -4021,7 +3594,7 @@ function SessionDetail({
                 }}
                 className="px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 text-white min-h-[44px] cursor-pointer text-xs"
               >
-                {t('modals.deleteBtn')}
+                {"Delete"}
               </button>
             </div>
           </div>
@@ -4148,7 +3721,7 @@ function StrictSummaryBlock({ data, onChange, onIntercept }: { data: string[], o
 }
 
 function ExpandedInsightsBlock({ data, onChange, onIntercept }: { data: ExpandedInsights, onChange?: (newData: ExpandedInsights) => void, onIntercept?: () => void }) {
-  const { t } = useTranslation();
+  
   const allEmpty =
     (data.drills?.length ?? 0) === 0 &&
     (data.homework?.length ?? 0) === 0 &&
@@ -4166,28 +3739,28 @@ function ExpandedInsightsBlock({ data, onChange, onIntercept }: { data: Expanded
     <div className="border border-purple-500/20 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(!open)} className="w-full px-5 py-3 cursor-pointer flex items-center gap-3 bg-purple-500/10 hover:bg-purple-500/15 transition-colors text-left print-show-flex">
         <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
-        <span className="font-bold text-purple-300 text-sm">{t('session.expandedInsights')}</span>
+        <span className="font-bold text-purple-300 text-sm">{"Expanded Insights (AI Enhanced)"}</span>
         <ChevronDown className={`w-4 h-4 text-purple-400/50 ml-auto transition-transform ${open ? 'rotate-180' : ''} print-hide-icon`} />
       </button>
       <div className={`p-4 space-y-3 bg-black/20 print:bg-transparent ${open ? 'block' : 'hidden'} print-expand`}>
-        {(data.drills?.length ?? 0) > 0 && <CollapsiblePanel title={t('session.drills')} defaultOpen={false}><BulletList items={data.drills} onChange={onChange ? (arr) => handleChange('drills', arr) : undefined} onIntercept={onIntercept} /></CollapsiblePanel>}
-        {(data.homework?.length ?? 0) > 0 && <CollapsiblePanel title={t('session.homework')} defaultOpen={false}><BulletList items={data.homework} onChange={onChange ? (arr) => handleChange('homework', arr) : undefined} onIntercept={onIntercept} /></CollapsiblePanel>}
-        {(data.technicalExpansion?.length ?? 0) > 0 && <CollapsiblePanel title={t('session.technicalExpansion')} defaultOpen={false}><BulletList items={data.technicalExpansion} onChange={onChange ? (arr) => handleChange('technicalExpansion', arr) : undefined} onIntercept={onIntercept} /></CollapsiblePanel>}
-        {(data.emotionalNotes?.length ?? 0) > 0 && <CollapsiblePanel title={t('session.emotionalNotes')} defaultOpen={false}><BulletList items={data.emotionalNotes} onChange={onChange ? (arr) => handleChange('emotionalNotes', arr) : undefined} onIntercept={onIntercept} /></CollapsiblePanel>}
+        {(data.drills?.length ?? 0) > 0 && <CollapsiblePanel title={"Drills"} defaultOpen={false}><BulletList items={data.drills} onChange={onChange ? (arr) => handleChange('drills', arr) : undefined} onIntercept={onIntercept} /></CollapsiblePanel>}
+        {(data.homework?.length ?? 0) > 0 && <CollapsiblePanel title={"Homework"} defaultOpen={false}><BulletList items={data.homework} onChange={onChange ? (arr) => handleChange('homework', arr) : undefined} onIntercept={onIntercept} /></CollapsiblePanel>}
+        {(data.technicalExpansion?.length ?? 0) > 0 && <CollapsiblePanel title={"Technical Expansion"} defaultOpen={false}><BulletList items={data.technicalExpansion} onChange={onChange ? (arr) => handleChange('technicalExpansion', arr) : undefined} onIntercept={onIntercept} /></CollapsiblePanel>}
+        {(data.emotionalNotes?.length ?? 0) > 0 && <CollapsiblePanel title={"Emotional Notes"} defaultOpen={false}><BulletList items={data.emotionalNotes} onChange={onChange ? (arr) => handleChange('emotionalNotes', arr) : undefined} onIntercept={onIntercept} /></CollapsiblePanel>}
       </div>
     </div>
   );
 }
 
 function TranscriptBlock({ text, onChange, onIntercept }: { text: string, onChange?: (newText: string) => void, onIntercept?: () => void }) {
-  const { t } = useTranslation();
+  
   const [open, setOpen] = useState(false);
   if (!text) return null;
   return (
     <div className="border border-white/10 rounded-2xl overflow-hidden print-transcript">
       <button onClick={() => setOpen(!open)} className="w-full px-5 py-3 cursor-pointer flex items-center gap-3 bg-white/5 hover:bg-white/8 transition-colors text-left print-show-flex">
         <FileAudio className="w-4 h-4 text-white/40 shrink-0" />
-        <span className="font-bold text-white/50 text-sm">{t('session.viewTranscript')}</span>
+        <span className="font-bold text-white/50 text-sm">{"View Transcript"}</span>
         <ChevronDown className={`w-4 h-4 text-white/20 ml-auto transition-transform ${open ? 'rotate-180' : ''} print-hide-icon`} />
       </button>
       <div className={`p-4 bg-black/20 print:bg-transparent text-white/50 print:text-black/60 text-sm italic leading-relaxed ${open ? 'block' : 'hidden'} print-expand`}>
@@ -4201,7 +3774,7 @@ function TranscriptBlock({ text, onChange, onIntercept }: { text: string, onChan
   );
 }
 
-function SortableCard({ id, children, isDraggable = true, isReordering = false }: { id: string; children: React.ReactNode; isDraggable?: boolean; isReordering?: boolean }) {
+function SortableCard({ id, children, isDraggable = true, isReordering = false }: { id: string; children: React.ReactNode; isDraggable?: boolean; isReordering?: boolean; key?: string | number }) {
   const {
     attributes,
     listeners,
@@ -4237,14 +3810,14 @@ function SortableCard({ id, children, isDraggable = true, isReordering = false }
 
 // ─── Session Structured Data ────────────────────────────────────────────────
 
-function SessionStructuredData({ sessionId, entries, processingIds, isReordering, onToggleReordering, onUpdateEntry, onDeleteEntry, onProcessEntry, onRequestReprocess, cardOrder, onUpdateOrder, sessionNotes, onUpdateNotes, showToast }: { sessionId: string; entries: AudioEntry[]; processingIds: Set<string>; isReordering: boolean; onToggleReordering?: () => void; onUpdateEntry: (id: string, changes: Partial<AudioEntry>) => void; onDeleteEntry: (id: string) => void; onProcessEntry: (id: string) => Promise<void>; onRequestReprocess: (id: string) => void; cardOrder?: string[]; onUpdateOrder: (newOrder: string[]) => void; sessionNotes?: string; onUpdateNotes: (newNotes: string) => void; showToast?: (msg: string, isError?: boolean) => void }) {
+function SessionStructuredData({ sessionId, entries, processingIds, isReordering, onToggleReordering, onUpdateEntry, onDeleteEntry, cardOrder, onUpdateOrder, sessionNotes, onUpdateNotes, showToast }: { sessionId: string; entries: AudioEntry[]; processingIds: Set<string>; isReordering: boolean; onToggleReordering?: () => void; onUpdateEntry: (id: string, changes: Partial<AudioEntry>) => void; onDeleteEntry: (id: string) => void; cardOrder?: string[]; onUpdateOrder: (newOrder: string[]) => void; sessionNotes?: string; onUpdateNotes: (newNotes: string) => void; showToast?: (msg: string, isError?: boolean) => void }) {
   const [report, setReport] = useState<any | null>(null);
 
-  const { t, uiLanguage } = useTranslation();
+  
 
   const handleIntercept = () => {
     if (sessionId === 'demo-session' && showToast) {
-      showToast(t('onboarding.demoTooltipEdit'), false);
+      showToast("💡 You can edit this text directly.", false);
     }
   };
   const interceptProp = sessionId === 'demo-session' ? handleIntercept : undefined;
@@ -4254,7 +3827,7 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
     const day = String(d.getDate()).padStart(2, '0');
     const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthsEs = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const month = uiLanguage === 'es' ? monthsEs[d.getMonth()] : monthsEn[d.getMonth()];
+    const month = monthsEn[d.getMonth()];
     const year = String(d.getFullYear()).slice(-2);
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
@@ -4361,11 +3934,11 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
         >
           <div className="flex items-center gap-3">
             <Sparkles className="w-5 h-5 text-brand" />
-            <span className="font-bold text-base">{t('session.consolidatedReport')}</span>
+            <span className="font-bold text-base">{"Consolidated Session Report"}</span>
           </div>
           {report?.timestamp && (
             <span className="text-[10px] font-sans text-white/40 font-semibold sm:self-center">
-              {t('session.consolidatedOn', { date: formatClipDate(report.timestamp) })}
+              {`Consolidated: ${formatClipDate(report.timestamp)}`}
             </span>
           )}
         </div>
@@ -4373,7 +3946,7 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
           {consolidatedStrictSummary && (
             <>
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand mb-3">{t('session.strictSummary')}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-brand mb-3">{"Strict Summary"}</p>
                 <StrictSummaryBlock data={consolidatedStrictSummary} onChange={(s) => handleUpdateConsolidated('strictSummary', s)} onIntercept={interceptProp} />
               </div>
               {consolidatedExpanded && <ExpandedInsightsBlock data={consolidatedExpanded} onChange={(ei) => handleUpdateConsolidated('expandedInsights', ei)} onIntercept={interceptProp} />}
@@ -4428,8 +4001,6 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
         onToggle={() => toggleEntry(audio.id)}
         onUpdateTitle={(newTitle) => onUpdateEntry(audio.id, { filename: newTitle })}
         onDelete={() => onDeleteEntry(audio.id)}
-        onProcess={() => onProcessEntry(audio.id)}
-        onRequestReprocess={() => onRequestReprocess(audio.id)}
         onUpdateContent={(changes) => onUpdateEntry(audio.id, changes)}
         showToast={showToast}
       />
@@ -4443,19 +4014,19 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
   availableItems.set(notesId, (
     <div className="bg-white/5 print:bg-transparent backdrop-blur-md border border-white/10 print:border-transparent p-6 rounded-2xl shadow-sm print:shadow-none relative w-full box-border mt-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-white/30">{t('session.notesHeading')}</h3>
+        <h3 className="text-sm font-bold uppercase tracking-widest text-white/30">{"Notes"}</h3>
         {!isNoteVisible && (
           <button
             onClick={() => {
               if (sessionId === 'demo-session' && showToast) {
-                showToast(t('onboarding.demoTooltipNotes'), false);
+                showToast("💡 You can add personal written notes to your session here.", false);
               } else {
                 setIsNoteVisible(true);
               }
             }}
             className="text-brand hover:text-brand/80 font-bold text-sm transition-colors"
           >
-            {t('session.addNote')}
+            {"+ Add note"}
           </button>
         )}
       </div>
@@ -4474,12 +4045,12 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
         <div className="flex flex-col gap-3 mt-4">
           <AutoGrowingTextarea
             autoFocus
-            placeholder={t('session.notesPlaceholder')}
+            placeholder={"Add your session notes here..."}
             value={newNoteText}
             onClick={(e) => {
               if (sessionId === 'demo-session' && showToast) {
                 e.preventDefault();
-                showToast(t('onboarding.demoTooltipNotes'), false);
+                showToast("💡 You can add personal written notes to your session here.", false);
               }
             }}
             readOnly={sessionId === 'demo-session'}
@@ -4494,7 +4065,7 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
                }}
                className="px-4 py-2 text-white/50 hover:text-white/80 text-sm font-bold transition-colors"
              >
-               {t('sessionSettings.cancelBtn')}
+               {"Cancel"}
              </button>
              <button 
                onClick={() => {
@@ -4507,7 +4078,7 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
                }}
                className="px-4 py-2 bg-brand/20 text-brand hover:bg-brand/30 rounded-lg text-sm font-bold transition-colors"
              >
-               {t('sessionSettings.confirmBtn')}
+               {"Confirm"}
              </button>
           </div>
         </div>
@@ -4571,9 +4142,9 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
           <button
             onClick={() => onToggleReordering?.()}
             className="bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 text-xs uppercase font-bold tracking-widest px-4 py-2 rounded-full shadow-sm flex items-center gap-2 transition-colors cursor-pointer"
-            title={t('session.disableReorder')}
+            title={"Disable reorder mode"}
           >
-            <GripHorizontal className="w-4 h-4" /> {t('session.reorderModeActive')}
+            <GripHorizontal className="w-4 h-4" /> {"Reorder Mode Active"}
           </button>
         </div>
       )}
@@ -4595,15 +4166,15 @@ function SessionStructuredData({ sessionId, entries, processingIds, isReordering
             <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-brand/80 animate-spin" style={{ animationDuration: '3s' }} />
             <AudioLines className="w-full h-full p-5 text-brand/60 drop-shadow-[0_0_10px_rgba(45,212,191,0.5)] relative z-10" />
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{t('session.emptySessionTitle')}</h3>
-          <p className="text-sm text-white/40 max-w-md leading-relaxed">{t('session.emptySessionDesc')}</p>
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{"This session is empty"}</h3>
+          <p className="text-sm text-white/40 max-w-md leading-relaxed">{"Tap the microphone to capture key concepts, combinations, or feedback from today's lesson."}</p>
         </div>
       )}
     </div>
   );
 }
 
-function AudioEntryCard({ displayTitle, time, audio, isOpen, isProcessing, hasNewShape, legacyContent, onToggle, onUpdateTitle, onDelete, onProcess, onRequestReprocess, onUpdateContent, showToast }: {
+function AudioEntryCard({ displayTitle, time, audio, isOpen, isProcessing, hasNewShape, legacyContent, onToggle, onUpdateTitle, onDelete, onUpdateContent, showToast }: {
   displayTitle: string;
   time: string;
   audio: AudioEntry;
@@ -4614,19 +4185,18 @@ function AudioEntryCard({ displayTitle, time, audio, isOpen, isProcessing, hasNe
   onToggle: () => void;
   onUpdateTitle: (newTitle: string) => void;
   onDelete: () => void;
-  onProcess: () => void;
-  onRequestReprocess: () => void;
   onUpdateContent: (changes: Partial<AudioEntry>) => void;
   showToast?: (msg: string, isError?: boolean) => void;
+  key?: string | number;
 }) {
-  const { t } = useTranslation();
+  
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(displayTitle);
 
   const handleIntercept = () => {
     if (audio.sessionId === 'demo-session' && showToast) {
-      showToast(t('onboarding.demoTooltipEdit'), false);
+      showToast("💡 You can edit this text directly.", false);
     }
   };
   const interceptProp = audio.sessionId === 'demo-session' ? handleIntercept : undefined;
@@ -4675,7 +4245,7 @@ function AudioEntryCard({ displayTitle, time, audio, isOpen, isProcessing, hasNe
                   if (isOpen) {
                     e.stopPropagation();
                     if (audio.sessionId === 'demo-session' && showToast) {
-                      showToast(t('onboarding.demoTooltipEdit'), false);
+                      showToast("💡 You can edit this text directly.", false);
                     } else {
                       setTempTitle(displayTitle);
                       setIsEditingTitle(true);
@@ -4690,22 +4260,14 @@ function AudioEntryCard({ displayTitle, time, audio, isOpen, isProcessing, hasNe
                 )}
               </span>
             )}
-            <span className="text-xs text-white/40">{time} - {audio.type === 'recording' ? t('session.liveType') : t('session.clipType')}</span>
+            <span className="text-xs text-white/40">{time} - {audio.type === 'recording' ? "Live" : "Clip"}</span>
           </div>
           {isProcessing && (
-            <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-brand animate-pulse bg-brand/10 px-3 py-1.5 rounded-lg border border-brand/20">{t('session.processing')}</span>
+            <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-brand animate-pulse bg-brand/10 px-3 py-1.5 rounded-lg border border-brand/20">{"PROCESSING..."}</span>
           )}
         </div>
         <div className="flex items-center gap-3">
-          {!isProcessing && !audio.transcript && !audio.strictSummary && !audio.bulletPoints && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onProcess(); }}
-              className="p-3 bg-brand/20 hover:bg-brand/30 text-brand rounded-xl border border-brand/30 transition-all shadow-lg shadow-brand/10 flex items-center justify-center min-h-[44px] min-w-[44px]"
-              title={t('session.processAudio')}
-            >
-              <Zap className="w-5 h-5" />
-            </button>
-          )}
+
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             className="p-3 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -4738,7 +4300,7 @@ function AudioEntryCard({ displayTitle, time, audio, isOpen, isProcessing, hasNe
           <>
             {audio.strictSummary && (audio.strictSummary as string[]).length > 0 && (
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand mb-3">{t('session.strictSummary')}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-brand mb-3">{"Strict Summary"}</p>
                 <StrictSummaryBlock data={audio.strictSummary as string[]} onChange={(s) => onUpdateContent({ strictSummary: s })} onIntercept={interceptProp} />
               </div>
             )}
@@ -4762,31 +4324,18 @@ function AudioEntryCard({ displayTitle, time, audio, isOpen, isProcessing, hasNe
                 }} />
               </div>
             ) : isProcessing ? (
-              <p className="text-white/40 italic text-sm">{t('session.waitingForContent')}</p>
+              <p className="text-white/40 italic text-sm">{"Waiting for content to be extracted..."}</p>
             ) : null}
             {audio.transcript && !hasNewShape && (
               <div className="mt-4 pt-4 border-t border-white/5 text-sm print-transcript">
-                <span className="text-xs font-bold uppercase tracking-widest text-white/30 mb-2 block">{t('session.rawTranscript')}</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-white/30 mb-2 block">{"Raw Transcript"}</span>
                 <EditableText value={audio.transcript} onChange={(t) => onUpdateContent({ transcript: t })} multiline className="text-white/60 italic leading-relaxed whitespace-pre-wrap block" onIntercept={interceptProp} />
               </div>
             )}
           </>
         )}
 
-        {!isProcessing && (audio.transcript || audio.strictSummary || audio.bulletPoints || Object.keys(legacyContent).length > 0) && (
-          <div className="mt-4 pt-4 border-t border-white/5 flex justify-end">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRequestReprocess();
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-brand/10 hover:bg-brand/20 text-brand rounded-xl border border-brand/20 transition-all text-sm font-bold shadow-sm"
-            >
-              <Zap className="w-4 h-4" />
-              {t('session.reprocessClip')}
-            </button>
-          </div>
-        )}
+
       </div>
     </div>
   );

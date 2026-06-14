@@ -1,4 +1,4 @@
-import { Session, AudioEntry, FinalReport, SessionGroup, DanceGlossary, SessionMedia } from '../types';
+import { Session, AudioEntry, SessionGroup, SessionMedia } from '../types';
 
 const DB_NAME = 'LMPLogDB';
 const DB_VERSION = 4; // v4: added sessionMedia store
@@ -27,14 +27,8 @@ export const dbStart = (): Promise<IDBDatabase> => {
       if (!db.objectStoreNames.contains('audios')) {
         db.createObjectStore('audios', { keyPath: 'id' });
       }
-      if (!db.objectStoreNames.contains('finalReports')) {
-        db.createObjectStore('finalReports', { keyPath: 'id' });
-      }
       if (!db.objectStoreNames.contains('sessionGroups')) {
         db.createObjectStore('sessionGroups', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('glossaries')) {
-        db.createObjectStore('glossaries', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('sessionMedia')) {
         db.createObjectStore('sessionMedia', { keyPath: 'id' });
@@ -98,25 +92,10 @@ export const db = {
     return all.filter(a => a.sessionId === sessionId);
   },
 
-  // Final Reports
-  saveFinalReport: (report: FinalReport) => writeToDb('finalReports', report),
-  getFinalReports: () => readAllFromDb<FinalReport>('finalReports'),
-  getSessionFinalReport: async (sessionId: string) => {
-    const all = await readAllFromDb<FinalReport>('finalReports');
-    const sessionReports = all.filter(r => r.sessionId === sessionId);
-    sessionReports.sort((a, b) => b.timestamp - a.timestamp);
-    return sessionReports[0];
-  },
-
   // Groups
   saveGroup: (group: SessionGroup) => writeToDb('sessionGroups', group),
   getGroups: () => readAllFromDb<SessionGroup>('sessionGroups'),
   deleteGroup: (id: string) => deleteFromDb('sessionGroups', id),
-
-  // Glossaries
-  saveGlossary: (glossary: DanceGlossary) => writeToDb('glossaries', glossary),
-  getGlossaries: () => readAllFromDb<DanceGlossary>('glossaries'),
-  deleteGlossary: (id: string) => deleteFromDb('glossaries', id),
 
   // Session Media
   saveMediaItem: (item: SessionMedia) => writeToDb('sessionMedia', item),
@@ -132,8 +111,6 @@ export const db = {
     const sessions = await db.getSessions();
     const audios = await db.getAudioEntries();
     const groups = await db.getGroups();
-    const glossaries = await db.getGlossaries();
-    const finalReports = await db.getFinalReports();
     const allMedia = await db.getAllMedia();
     
     // Convert each audio's audioBlob into a Base64 string for JSON compatibility
@@ -209,8 +186,6 @@ export const db = {
         sessions,
         audios: serializedAudios,
         groups,
-        glossaries,
-        finalReports,
         media: serializedMedia
       }
     };
@@ -221,11 +196,11 @@ export const db = {
       throw new Error("Invalid backup file format");
     }
     
-    const { sessions, audios, groups, glossaries, finalReports } = backup.data;
+    const { sessions, audios, groups } = backup.data;
     
     // 1. Clear database stores
     const dbInst = await dbStart();
-    const storeNames = ['sessions', 'audios', 'finalReports', 'sessionGroups', 'glossaries', 'sessionMedia'];
+    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia'];
     const transaction = dbInst.transaction(storeNames, 'readwrite');
     storeNames.forEach(name => {
       transaction.objectStore(name).clear();
@@ -249,20 +224,6 @@ export const db = {
         await db.saveGroup(g);
       }
     }
-    
-    // 4. Restore Glossaries
-    if (Array.isArray(glossaries)) {
-      for (const gl of glossaries) {
-        await db.saveGlossary(gl);
-      }
-    }
-    
-    // 5. Restore Final Reports
-    if (Array.isArray(finalReports)) {
-      for (const r of finalReports) {
-        await db.saveFinalReport(r);
-      }
-    }
 
     // 6. Restore Audio Entries (convert Base64 back to Blob)
     if (Array.isArray(audios)) {
@@ -283,9 +244,6 @@ export const db = {
           timestamp: a.timestamp,
           language: a.language,
           transcript: a.transcript,
-          bulletPoints: a.bulletPoints,
-          strictSummary: a.strictSummary,
-          expandedInsights: a.expandedInsights,
           audioBlob: blob,
           type: a.type,
           filename: a.filename
@@ -325,9 +283,15 @@ export const db = {
     }
   },
 
+  saveFinalReport: async (report: any) => {},
+  getSessionFinalReport: async (id: string) => null as any,
+  saveGlossary: async (g: any) => {},
+  deleteGlossary: async (id: string) => {},
+  getGlossaries: async () => [] as any[],
+
   clearDatabase: async () => {
     const dbInst = await dbStart();
-    const storeNames = ['sessions', 'audios', 'finalReports', 'sessionGroups', 'glossaries', 'sessionMedia'];
+    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia'];
     const transaction = dbInst.transaction(storeNames, 'readwrite');
     storeNames.forEach(name => {
       transaction.objectStore(name).clear();

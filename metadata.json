@@ -1,5 +1,5 @@
 {
-  "name": "Zoutty",
+  "name": "LMPLOG",
   "description": "A personal Zouk lesson management app for recording, transcribing, and consolidating dance progress.",
   "requestFramePermissions": [
     "microphone"

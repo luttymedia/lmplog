@@ -3,14 +3,11 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import InstallEnforcer from './InstallEnforcer.tsx';
 import './index.css';
-import { TranslationProvider } from './i18n/TranslationContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <TranslationProvider>
-      <InstallEnforcer>
-        <App />
-      </InstallEnforcer>
-    </TranslationProvider>
+    <InstallEnforcer>
+      <App />
+    </InstallEnforcer>
   </StrictMode>,
 );
