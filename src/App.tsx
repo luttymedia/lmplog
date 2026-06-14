@@ -2877,6 +2877,7 @@ function SessionDetail({
   const [isEditingSubtitle, setIsEditingSubtitle] = useState(false);
   const [tempSubtitle, setTempSubtitle] = useState(session.subtitle ?? '');
   const [isReordering, setIsReordering] = useState(false);
+  const [isReviewMode, setIsReviewMode] = useState(false);
   const [isNoteVisible, setIsNoteVisible] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -3062,7 +3063,11 @@ function SessionDetail({
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between mt-4">
-          <div />
+          <div>
+            <button onClick={() => setIsReviewMode(true)} className="px-4 py-2 bg-white/5 text-white/90 text-sm font-medium rounded-full shadow-sm hover:bg-white/10 transition-colors border border-white/10">
+              Review Mode
+            </button>
+          </div>
           <div className="flex items-center gap-2">
             <button
                 onClick={() => {
@@ -3121,6 +3126,9 @@ function SessionDetail({
             showToast={showToast} 
             sessionMedia={mediaItems} 
             onOpenGallery={() => setIsGalleryOpen(true)} 
+            isReordering={isReordering}
+            isReviewMode={isReviewMode}
+            onSetReviewMode={setIsReviewMode}
         />
       </div>
 

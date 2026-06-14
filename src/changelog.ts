@@ -6,6 +6,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.2.0',
+    date: '2026-06-14',
+    changes: [
+      'Marker list is now always sorted chronologically by IN time, even after manual edits',
+      'Markers can now be added at any time, even when the clip timer is stopped or has not started',
+      '+OUT button is always visible on markers without an out time, enabling manual entry after recording',
+      'Note input field on markers is now hidden by default and revealed via an icon button',
+      'Note input auto-hides on blur if left empty',
+      'Clip cards are now reorderable via drag-and-drop; order is persisted across sessions',
+      'Added Expand All / Collapse All icon button for clip cards',
+      'Review Mode button moved to the session header bar alongside other action buttons'
+    ]
+  },
+  {
     version: '1.1.0',
     date: new Date().toISOString().split('T')[0],
     changes: [
