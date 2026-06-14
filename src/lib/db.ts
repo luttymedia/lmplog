@@ -1,4 +1,4 @@
-import { Session, AudioEntry, SessionGroup, SessionMedia } from '../types';
+import { Session, AudioEntry, SessionGroup, SessionMedia, Clip } from '../types';
 
 const DB_NAME = 'LMPLogDB';
 const DB_VERSION = 4; // v4: added sessionMedia store
@@ -23,6 +23,9 @@ export const dbStart = (): Promise<IDBDatabase> => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains('sessions')) {
         db.createObjectStore('sessions', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('clips')) {
+        db.createObjectStore('clips', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('audios')) {
         db.createObjectStore('audios', { keyPath: 'id' });
@@ -90,6 +93,16 @@ export const db = {
   getSessionAudios: async (sessionId: string) => {
     const all = await readAllFromDb<AudioEntry>('audios');
     return all.filter(a => a.sessionId === sessionId);
+  },
+
+  
+  // Clips
+  saveClip: (clip: Clip) => writeToDb('clips', clip),
+  getClips: () => readAllFromDb<Clip>('clips'),
+  deleteClip: (id: string) => deleteFromDb('clips', id),
+  getSessionClips: async (sessionId: string) => {
+    const all = await readAllFromDb<Clip>('clips');
+    return all.filter(c => c.sessionId === sessionId);
   },
 
   // Groups

@@ -38,12 +38,52 @@ import {
   CloudUpload,
   CloudDownload
 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Plus,
+  Mic,
+  Square,
+  Upload,
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  FileAudio,
+  Wand2,
+  Trash2,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  Sparkles,
+  Edit2,
+  Globe,
+  Download,
+  Zap,
+  GripHorizontal,
+  X,
+  Folder,
+  FolderPlus,
+  FolderOpen,
+  Share2,
+  Copy,
+  SlidersHorizontal,
+  Settings,
+  BookOpen,
+  Music,
+  Images,
+  AlertTriangle,
+  LinkIcon,
+  AudioLines,
+  Play,
+  CloudUpload,
+  CloudDownload
+} from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { format } from 'date-fns';
 import { db } from './lib/db';
 import { Session, AudioEntry, Language, SessionGroup, SessionMedia, StrictSummary, ExpandedInsights, DanceGlossary } from './types';
 
 import { LMPLOGIcon } from './components/LMPLOGIcon';
+import { WelcomeMessage } from './components/WelcomeMessage';
 import { SessionInfoModal } from './components/SessionInfoModal';
 import { CustomSelect } from './components/CustomSelect';
 import { CustomCheckbox } from './components/CustomCheckbox';
@@ -208,6 +248,9 @@ export default function App() {
   const [reprocessModal, setReprocessModal] = useState<string | null>(null);
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [showBackupReminderModal, setShowBackupReminderModal] = useState(false);
+  
+  const [editingSessionInfo, setEditingSessionInfo] = useState<Partial<Session> | null>(null);
+  const [isNewSessionFlow, setIsNewSessionFlow] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
   const [restoreBackupFile, setRestoreBackupFile] = useState<File | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -660,9 +703,6 @@ export default function App() {
     db.getSessionMedia(selectedSessionId).then(items => setSessionMedia(items)).catch(console.error);
   }, [selectedSessionId]);
 
-  const [editingSessionInfo, setEditingSessionInfo] = useState<Partial<Session> | null>(null);
-  const [isNewSessionFlow, setIsNewSessionFlow] = useState(false);
-
   const handleConfirmSessionInfo = async (data: Partial<Session>) => {
     if (isNewSessionFlow) {
       const newSession: Session = {
@@ -672,7 +712,7 @@ export default function App() {
         subtitle: '',
         date: data.date || Date.now(),
         groupId: selectedGroupId || undefined,
-        glossaryId: 'auto' // default to auto-detect
+        glossaryId: 'auto'
       } as Session;
 
       await db.saveSession(newSession);
@@ -685,7 +725,7 @@ export default function App() {
         }
         return next;
       });
-      navigateTo('detail', newSession.id, selectedGroupId);
+      setSelectedSessionId(newSession.id);
     } else if (data.id) {
       await updateSession(data.id, data);
     }
@@ -1694,7 +1734,7 @@ export default function App() {
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84z" />
                 </svg>
               </div>
               <h3 className="text-lg font-bold text-white">{"Disconnect Google Drive?"}</h3>
@@ -2410,661 +2450,6 @@ export default function App() {
                     date: Date.now(),
                     groupId: selectedGroupId || undefined
                   });
-                }}
-                className={`py-3.5 glass bg-brand/10 border-brand/20 text-brand font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand/20 transition-all rounded-2xl shadow-lg glow-brand flex-1 min-h-[52px] ${selectedGroupId ? 'py-4 text-base' : ''}`}
-              >
-                <Plus className="w-4 h-4" />
-                {"Session"}
-              </button>
-              {!selectedGroupId && (
-                <>
-                  <button
-                    onClick={() => setFolderModal({ type: 'create', name: '' })}
-                    className="py-3.5 glass bg-violet-500/10 border-violet-500/20 text-violet-400 font-bold text-sm flex items-center justify-center gap-2 hover:bg-violet-500/20 transition-all rounded-2xl shadow-lg shadow-violet-500/10 flex-1 min-h-[52px]"
-                  >
-                    <FolderPlus className="w-4 h-4" />
-                    {"Folder"}
-                  </button>
-
-                </>
-              )}
-            </div>
-
-            {/* Folders List - Shown in Root */}
-            {!selectedGroupId && groups.filter(g => g.id !== 'root').length > 0 && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-white/30">{"Folders"}</h2>
-
-                  {/* Folder Sorting controls bar */}
-                  <div className="flex items-center gap-4 text-xs text-white/40 font-sans font-semibold">
-                    <span className="hidden sm:inline">{"Sort by:"}</span>
-                    <div className="flex gap-3.5">
-                      <button
-                        onClick={() => handleFolderSortClick('date')}
-                        className={`hover:text-white transition-colors flex items-center gap-1 ${folderSortBy === 'date' ? 'text-brand font-bold' : ''}`}
-                      >
-                        {"Recent"}
-                        {folderSortBy === 'date' && (folderSortOrder === 'asc' ? ' ↑' : ' ↓')}
-                      </button>
-                      <button
-                        onClick={() => handleFolderSortClick('name')}
-                        className={`hover:text-white transition-colors flex items-center gap-1 ${folderSortBy === 'name' ? 'text-brand font-bold' : ''}`}
-                      >
-                        {"Name"}
-                        {folderSortBy === 'name' && (folderSortOrder === 'asc' ? ' ↑' : ' ↓')}
-                      </button>
-                      <button
-                        onClick={() => handleFolderSortClick('created')}
-                        className={`hover:text-white transition-colors flex items-center gap-1 ${folderSortBy === 'created' ? 'text-brand font-bold' : ''}`}
-                      >
-                        {"Created"}
-                        {folderSortBy === 'created' && (folderSortOrder === 'asc' ? ' ↑' : ' ↓')}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {sortFolders(groups.filter(g => g.id !== 'root')).map(group => (
-                    <div
-                      key={group.id}
-                      onClick={() => navigateTo('list', null, group.id)}
-                      className="glass p-4.5 flex items-center gap-4 hover:bg-white/5 transition-all cursor-pointer border border-violet-500/10 rounded-2xl"
-                    >
-                      <div className="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
-                        <Folder className="w-5 h-5 text-violet-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold truncate text-white">{group.name}</h3>
-                        <p className="text-xs text-white/40 mt-0.5 font-medium font-sans">
-                          {`${sessions.filter(s => s.groupId === group.id).length} sessions`}
-                        </p>
-                      </div>
-                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => setFolderModal({ type: 'rename', id: group.id, name: group.name })}
-                          className="p-2 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center"
-                          title="Rename folder"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteFolderModal({ id: group.id, name: group.name })}
-                          className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center"
-                          title="Delete folder"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {showSessionsSection && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-white/30">
-                    {selectedGroupId ? "Sessions in Folder" : "Sessions"}
-                  </h2>
-
-                  {/* Sorting controls bar */}
-                  <div className="flex items-center gap-4 text-xs text-white/40 font-sans font-semibold">
-                    <span className="hidden sm:inline">{"Sort by:"}</span>
-                    <div className="flex gap-3.5">
-                      <button
-                        onClick={() => handleSessionSortClick('date')}
-                        className={`hover:text-white transition-colors flex items-center gap-1 ${sessionSortBy === 'date' ? 'text-brand font-bold' : ''}`}
-                      >
-                        {"Recent"}
-                        {sessionSortBy === 'date' && (sessionSortOrder === 'asc' ? ' ↑' : ' ↓')}
-                      </button>
-                      <button
-                        onClick={() => handleSessionSortClick('name')}
-                        className={`hover:text-white transition-colors flex items-center gap-1 ${sessionSortBy === 'name' ? 'text-brand font-bold' : ''}`}
-                      >
-                        {"Name"}
-                        {sessionSortBy === 'name' && (sessionSortOrder === 'asc' ? ' ↑' : ' ↓')}
-                      </button>
-                      <button
-                        onClick={() => handleSessionSortClick('created')}
-                        className={`hover:text-white transition-colors flex items-center gap-1 ${sessionSortBy === 'created' ? 'text-brand font-bold' : ''}`}
-                      >
-                        {"Created"}
-                        {sessionSortBy === 'created' && (sessionSortOrder === 'asc' ? ' ↑' : ' ↓')}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {sessions.filter(s => selectedGroupId ? s.groupId === selectedGroupId : !s.groupId).length === 0 ? (
-                  !selectedGroupId ? (
-                    <div className="flex flex-col items-center justify-center p-12 sm:p-20 text-center animate-in fade-in zoom-in duration-500">
-                      <div className="relative w-24 h-24 sm:w-32 sm:h-32 mb-6">
-                        <div className="absolute inset-0 bg-brand/20 blur-3xl rounded-full animate-pulse" />
-                        <Sparkles className="w-full h-full text-brand/60 drop-shadow-[0_0_15px_rgba(45,212,191,0.5)] animate-pulse" style={{ animationDuration: '3s' }} />
-                      </div>
-                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 tracking-tight">{"Ready for the next lesson?"}</h3>
-                      <p className="text-sm sm:text-base text-white/50 max-w-sm leading-relaxed">{"Tap the '+ Session' button to set up a new session."}</p>
-                    </div>
-                  ) : (
-                    <div className="glass p-12 text-center text-white/20">
-                      <Folder className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p>{"No sessions in this folder."}</p>
-                    </div>
-                  )
-                ) : (
-                  <div className="grid grid-cols-1 gap-4">
-                    {sortSessions(
-                      sessions.filter(s => selectedGroupId ? s.groupId === selectedGroupId : !s.groupId)
-                    ).map(session => (
-                      <div
-                        key={session.id}
-                        onClick={() => {
-                          navigateTo('detail', session.id, selectedGroupId);
-                        }}
-                        className={`glass p-5 flex items-center gap-4 hover:bg-white/5 transition-all cursor-pointer rounded-2xl border ${session.isDemo && sessions.length === 1 ? 'border-brand/50 shadow-[0_0_20px_rgba(45,212,191,0.2)] animate-pulse hover:border-brand/70' : 'border-white/5 hover:border-brand/25'}`}
-                      >
-                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center shrink-0">
-                          <FileAudio className="w-6 h-6 text-brand" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-semibold truncate text-white">{session.title}</h3>
-                          <p className="text-xs text-white/40 mt-1 truncate">{session.subtitle || new Date(session.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        </div>
-                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMoveSessionModal({ sessionId: session.id, currentGroupId: session.groupId });
-                            }}
-                            className="p-3 bg-white/5 text-white/60 hover:text-brand hover:bg-white/10 rounded-xl transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]"
-                            title={"Move to folder"}
-                          >
-                            <Folder className="w-5 h-5 shrink-0" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              requestDeleteSession(session.id, session.title);
-                            }}
-                            className="p-3 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]"
-                            title={"Delete"}
-                          >
-                            <Trash2 className="w-5 h-5 shrink-0" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : selectedSession && (
-          <SessionDetail
-            session={selectedSession}
-            entries={(Object.values(audioEntries) as AudioEntry[]).filter(e => e.sessionId === selectedSession.id).sort((a, b) => b.timestamp - a.timestamp)}
-            processingIds={processingIds}
-            onRecording={(blob, lang) => selectedSession.isDemo ? showToast("💡 Tap here to record a live audio. We recommend keeping clips under 90 seconds.", false) : addAudioEntry(selectedSession.id, blob, lang, 'recording')}
-            onUpload={(e, lang) => selectedSession.isDemo ? showToast("💡 Tap here to upload an audio file.", false) : handleFileUpload(e, lang)}
-            onUpdateSession={(changes) => updateSession(selectedSession.id, changes)}
-            onUpdateEntry={(id, changes) => selectedSession.isDemo ? showToast("💡 You can edit this text directly.", false) : updateAudioEntry(id, changes)}
-            onDeleteEntry={(id) => selectedSession.isDemo ? showToast("💡 This deletes the item.", false) : requestDeleteAudio(id, 'Audio Entry')}
-            showToast={showToast}
-            groups={groups}
-            glossaries={glossaries}
-            onDeleteSession={() => requestDeleteSession(selectedSession.id, selectedSession.title)}
-            mediaItems={sessionMedia}
-            onMediaChange={setSessionMedia}
-            onEditSessionInfo={() => setEditingSessionInfo(selectedSession)}
-          />
-        )}
-      </main>
-
-      {/* Session Info Modal (Create/Edit) */}
-      {editingSessionInfo && (
-        <SessionInfoModal
-          initialData={editingSessionInfo}
-          isNew={isNewSessionFlow}
-          onConfirm={handleConfirmSessionInfo}
-          onCancel={() => {
-            setEditingSessionInfo(null);
-            setIsNewSessionFlow(false);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-// --- Sub-Components ---
-
-function SessionDetail({
-  session,
-  entries,
-  processingIds,
-  onRecording,
-  onUpload,
-  onUpdateSession,
-  onUpdateEntry,
-  onDeleteEntry,
-  showToast,
-  groups,
-  glossaries,
-  onDeleteSession,
-  mediaItems,
-  onMediaChange,
-  onEditSessionInfo
-}: {
-  session: Session;
-  entries: AudioEntry[];
-  processingIds: Set<string>;
-  onRecording: (blob: Blob, lang: Language) => void;
-  onUpload: (e: React.ChangeEvent<HTMLInputElement>, lang: Language) => void;
-  onUpdateSession: (changes: Partial<Session>) => void;
-  onUpdateEntry: (id: string, changes: Partial<AudioEntry>) => void;
-  onDeleteEntry: (entryId: string) => void;
-  showToast: (msg: string, isError?: boolean) => void;
-  groups: SessionGroup[];
-  glossaries: DanceGlossary[];
-  onDeleteSession: () => void;
-  mediaItems: SessionMedia[];
-  onMediaChange: (items: SessionMedia[]) => void;
-  onEditSessionInfo: () => void;
-}) {
-  
-  const [isRecording, setIsRecording] = useState(false);
-  const [micLevel, setMicLevel] = useState(0);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const timerRef = useRef<any>(null);
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const [isAddingMedia, setIsAddingMedia] = useState(false);
-  const [mediaObjectUrls, setMediaObjectUrls] = useState<Record<string, string>>({});
-  const [brokenMediaIds, setBrokenMediaIds] = useState<Set<string>>(new Set());
-  const [lightboxItem, setLightboxItem] = useState<SessionMedia | null>(null);
-  const [isDeleteMode, setIsDeleteMode] = useState(false);
-  const [mediaToDelete, setMediaToDelete] = useState<SessionMedia | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaInputRef = useRef<HTMLInputElement>(null);
-  const isFileAccessSupported = false;
-
-  // Revoke object URLs on cleanup
-  useEffect(() => {
-    return () => {
-      (Object.values(mediaObjectUrls) as string[]).forEach(url => URL.revokeObjectURL(url));
-    };
-  }, []);
-
-  // Resolve object URLs for media items when drawer opens
-  useEffect(() => {
-    if (!isGalleryOpen) return;
-    const resolveUrls = async () => {
-      const newUrls: Record<string, string> = {};
-      const newBroken = new Set<string>();
-      for (const item of mediaItems) {
-        if (mediaObjectUrls[item.id]) continue; // already resolved
-        try {
-          let file: File | Blob | null = null;
-          if (item.storageMode === 'reference' && item.fileHandle) {
-            // Request read permission if needed
-            const perm = await item.fileHandle.queryPermission({ mode: 'read' });
-            if (perm !== 'granted') {
-              await item.fileHandle.requestPermission({ mode: 'read' });
-            }
-            file = await item.fileHandle.getFile();
-          } else if (item.storageMode === 'blob' && item.blob) {
-            file = item.blob;
-          }
-          if (file) {
-            newUrls[item.id] = URL.createObjectURL(file);
-          } else {
-            newBroken.add(item.id);
-          }
-        } catch {
-          newBroken.add(item.id);
-        }
-      }
-      setMediaObjectUrls(prev => ({ ...prev, ...newUrls }));
-      setBrokenMediaIds(prev => {
-        const next = new Set(prev);
-        newBroken.forEach(id => next.add(id));
-        return next;
-      });
-    };
-    resolveUrls();
-  }, [isGalleryOpen, mediaItems]);
-
-  const formatBytes = (bytes: number) => {
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  const handleAddMedia = async () => {
-    if (isFileAccessSupported) {
-      // Reference Mode: use File System Access API
-      try {
-        const handles = await (window as any).showOpenFilePicker({
-          multiple: true,
-          types: [
-            { description: 'Images & Videos', accept: { 'image/*': [], 'video/*': [] } }
-          ]
-        });
-        setIsAddingMedia(true);
-        const newItems: SessionMedia[] = [];
-        for (const handle of handles) {
-          const file: File = await handle.getFile();
-          const item: SessionMedia = {
-            id: crypto.randomUUID(),
-            sessionId: session.id,
-            timestamp: Date.now(),
-            filename: file.name,
-            mimeType: file.type,
-            size: file.size,
-            storageMode: 'reference',
-            fileHandle: handle
-          };
-          await db.saveMediaItem(item);
-          newItems.push(item);
-        }
-        onMediaChange([...mediaItems, ...newItems]);
-        setIsAddingMedia(false);
-      } catch (err: any) {
-        setIsAddingMedia(false);
-        if (err?.name !== 'AbortError') showToast("Failed to attach media.", true);
-      }
-    } else {
-      // Blob Mode: standard file input for Safari/iOS/Firefox
-      mediaInputRef.current?.click();
-    }
-  };
-
-  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []) as File[];
-    if (!files.length) return;
-    setIsAddingMedia(true);
-    const MAX_BLOB_SIZE = 500 * 1024 * 1024; // 500 MB hard cap
-    const LOW_STORAGE_THRESHOLD = 100 * 1024 * 1024; // warn below 100MB free
-
-    try {
-      // Check available storage
-      let availableBytes: number | null = null;
-      if ('storage' in navigator && 'estimate' in navigator.storage) {
-        const { quota = 0, usage = 0 } = await navigator.storage.estimate();
-        availableBytes = quota - usage;
-      }
-
-      const newItems: SessionMedia[] = [];
-      for (const file of files) {
-        // Validate type
-        if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-          showToast("This file type is not supported. Please choose an image or video.", true);
-          continue;
-        }
-        // Hard cap
-        if (file.size > MAX_BLOB_SIZE) {
-          showToast(`This file is too large to attach (${formatBytes(file.size)}). Please choose a smaller file.`, true);
-          continue;
-        }
-        // Storage warning
-        if (availableBytes !== null && availableBytes < LOW_STORAGE_THRESHOLD) {
-          showToast(`Low storage available (${formatBytes(availableBytes)} free). This file (${formatBytes(file.size)}) may not save reliably. Consider freeing up space.`, true);
-        }
-
-        let blobToStore: Blob = file;
-        // Compress images (not videos)
-        if (file.type.startsWith('image/')) {
-          try {
-            blobToStore = await imageCompression(file, {
-              maxWidthOrHeight: 1920,
-              useWebWorker: true
-            });
-          } catch {
-            blobToStore = file; // fallback to original on compression failure
-          }
-        }
-
-        const item: SessionMedia = {
-          id: crypto.randomUUID(),
-          sessionId: session.id,
-          timestamp: Date.now(),
-          filename: file.name,
-          mimeType: file.type,
-          size: blobToStore.size,
-          storageMode: 'blob',
-          blob: blobToStore
-        };
-        await db.saveMediaItem(item);
-        newItems.push(item);
-      }
-      if (newItems.length > 0) onMediaChange([...mediaItems, ...newItems]);
-    } catch (err) {
-      console.error('[Gallery] Failed to attach media:', err);
-      showToast("Failed to attach media.", true);
-    } finally {
-      setIsAddingMedia(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleDeleteMediaItem = async (item: SessionMedia) => {
-    // Revoke object URL if any
-    if (mediaObjectUrls[item.id]) {
-      URL.revokeObjectURL(mediaObjectUrls[item.id]);
-      setMediaObjectUrls(prev => { const c = { ...prev }; delete c[item.id]; return c; });
-    }
-    setBrokenMediaIds(prev => { const n = new Set(prev); n.delete(item.id); return n; });
-    await db.deleteMediaItem(item.id);
-    onMediaChange(mediaItems.filter(m => m.id !== item.id));
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
-
-  const formatDuration = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-  const language = 'auto';
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [tempTitle, setTempTitle] = useState(session.title);
-  const [isEditingSubtitle, setIsEditingSubtitle] = useState(false);
-  const [tempSubtitle, setTempSubtitle] = useState(session.subtitle ?? '');
-  const [isReordering, setIsReordering] = useState(false);
-  const [isNoteVisible, setIsNoteVisible] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  const parentGroup = groups.find(g => g.id === session.groupId);
-
-  // Buffered settings states
-  const [tempGroupId, setTempGroupId] = useState('');
-  const [tempGlossaryId, setTempGlossaryId] = useState('auto');
-  const [tempCustomGlossaryStyle, setTempCustomGlossaryStyle] = useState('');
-
-  const handleConfirmSettings = () => {
-    onUpdateSession({
-      groupId: tempGroupId || undefined,
-      glossaryId: tempGlossaryId,
-      customGlossaryStyle: tempCustomGlossaryStyle || undefined
-    });
-    setIsSettingsOpen(false);
-  };
-
-  const handleCancelSettings = () => {
-    setIsSettingsOpen(false);
-  };
-
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const isCancelledRef = useRef(false);
-
-  const startRecording = async () => {
-    if (session.isDemo) {
-      showToast("💡 Tap here to record a live audio. We recommend keeping clips under 90 seconds.", false);
-      return;
-    }
-    try {
-      isCancelledRef.current = false;
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 }
-      });
-
-      // Live mic level meter via AudioContext analyser
-      const audioCtx = new AudioContext();
-      audioCtxRef.current = audioCtx;
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const updateLevel = () => {
-        analyser.getByteTimeDomainData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          const v = (dataArray[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / dataArray.length);
-        setMicLevel(Math.min(1, rms * 6)); // scale so normal speech hits 0.4–0.8
-        animFrameRef.current = requestAnimationFrame(updateLevel);
-      };
-      animFrameRef.current = requestAnimationFrame(updateLevel);
-
-      // Pick the best supported MIME type so the Blob type is accurate
-      const preferredMime = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/mp4'
-      ].find(t => MediaRecorder.isTypeSupported(t)) || '';
-      console.log('[MediaRecorder] Preferred mimeType:', preferredMime || '(browser default)');
-
-      mediaRecorder.current = new MediaRecorder(stream, preferredMime ? { mimeType: preferredMime } : {});
-      audioChunks.current = [];
-
-      mediaRecorder.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.current.push(event.data);
-          console.log('[MediaRecorder] chunk received, size:', event.data.size, 'total chunks:', audioChunks.current.length);
-        }
-      };
-
-      mediaRecorder.current.onstop = () => {
-        const actualMime = mediaRecorder.current?.mimeType || preferredMime || 'audio/webm';
-        // Use plain audio/webm for blob type — codec specifier can confuse some browsers during playback
-        const blobType = actualMime.split(';')[0] || 'audio/webm';
-        console.log('[MediaRecorder] Actual mimeType after stop:', actualMime);
-        console.log('[MediaRecorder] Total chunks:', audioChunks.current.length);
-        const audioBlob = new Blob(audioChunks.current, { type: blobType });
-        console.log('[MediaRecorder] Blob size:', audioBlob.size, 'type:', audioBlob.type);
-
-        if (isCancelledRef.current) {
-          console.log('[MediaRecorder] Recording cancelled, discarding chunks.');
-        } else {
-          onRecording(audioBlob, language);
-        }
-
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.current.start(250); // 250ms timeslice — guarantees chunks are written regularly
-      setIsRecording(true);
-      setRecordingDuration(0);
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        setRecordingDuration(prev => prev + 1);
-      }, 1000);
-    } catch (err) {
-      console.error('Error accessing microphone:', err);
-      showToast("Microphone access denied or not available.", true);
-    }
-  };
-
-  const stopRecording = () => {
-    if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current);
-    if (audioCtxRef.current) { audioCtxRef.current.close(); audioCtxRef.current = null; }
-    setMicLevel(0);
-    mediaRecorder.current?.stop();
-    setIsRecording(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  const cancelRecording = () => {
-    isCancelledRef.current = true;
-    stopRecording();
-  };
-
-  const handleSubtitleSubmit = () => {
-    onUpdateSession({ subtitle: tempSubtitle.trim() });
-    setIsEditingSubtitle(false);
-  };
-
-  const handleTitleSubmit = () => {
-    if (tempTitle.trim() && tempTitle.trim() !== session.title) {
-      onUpdateSession({ title: tempTitle.trim() });
-    } else {
-      setTempTitle(session.title);
-    }
-    setIsEditingTitle(false);
-  };
-
-  return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Print-only Logo */}
-      <div className="hidden print:block text-center pb-4 border-b border-gray-200">
-        <img src="/lmplogLogoHoriz.png" alt="LMPLOG" className="h-10 mx-auto" />
-      </div>
-      {/* Session Header: date (white) + optional editable subtitle */}
-      <div>
-        <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
-          {parentGroup ? (
-            <div className="flex items-center gap-1.5 text-xs text-white/40">
-              <Folder className="w-3.5 h-3.5 text-brand" />
-              <span className="font-semibold text-white/60">{parentGroup.name}</span>
-              <span className="text-white/20">/</span>
-            </div>
-          ) : (
-            <div />
-          )}
-
-        </div>
-        {/* Date line — always shown, white, bold */}
-        <p
-          className="text-xl font-bold text-white cursor-pointer hover:text-white/80 transition-colors flex flex-col group w-max"
-          onClick={() => {
-            if (session.isDemo) {
-              showToast("💡 You can edit this text directly.", false);
-            } else {
-              onEditSessionInfo();
-            }
-          }}
-          title={"Edit session info"}
-        >
-          <span className="flex items-center gap-2">
-            {session.title}
-            <Edit2 className="w-4 h-4 text-brand opacity-0 group-hover:opacity-80 transition-opacity shrink-0 cursor-pointer print-hide-icon" />
-          </span>
-          <span className="text-xs font-medium text-white/40 mt-1">
-            {new Date(session.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </span>
-        </p>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between mt-4">
-          <div />
-          <div className="flex items-center gap-2">
-            <button
                 onClick={() => {
                   if (session.isDemo) {
                     showToast("💡 You can reorder the items in this session.", false);
@@ -3111,6 +2496,9 @@ function SessionDetail({
               </button>
             </div>
           </div>
+        )}
+
+
       </div>
 
       <div id="sessionDetailContent" className="mt-8">

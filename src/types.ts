@@ -34,6 +34,11 @@ export interface Session {
   shareMethod?: string;
   shareTimestamp?: number;
   sharedContent?: any;
+
+  location?: string;
+  equipment?: string;
+  cameraSettings?: string;
+  generalNotes?: string;
 }
 
 export interface SessionGroup {
@@ -56,3 +61,20 @@ export interface SessionMedia {
   blob?: Blob;      // Blob mode — Safari/Firefox/iOS fallback
 }
 
+export interface Marker {
+  id: string;
+  inTime: number;
+  outTime?: number;
+  type: 'Cut' | 'Zoom' | 'Note';
+  content: string;
+  isResolved?: boolean;
+}
+
+export interface Clip {
+  id: string;
+  sessionId: string;
+  title: string;
+  startedAt: number | null;
+  endedAt: number | null;
+  markers: Marker[];
+}

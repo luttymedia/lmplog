@@ -6,6 +6,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.1.0',
+    date: new Date().toISOString().split('T')[0],
+    changes: [
+      'Overhauled the Session details into a Video Logger for live marker logging',
+      'Introduced Dark Mode UI with Glassmorphism for recording sessions',
+      'Added a new Session Info Modal for creating and editing session details',
+      'Replaced native select and confirm dialogs with custom UI components',
+      'Added collapsible "Take" cards and editable timestamp fields'
+    ]
+  },
+  {
     version: '1.0.1',
     date: new Date().toISOString().split('T')[0],
     changes: [
