@@ -97,7 +97,7 @@ export default function InstallEnforcer({ children }: { children: React.ReactNod
     hintText = "To install LMPLOG, open this page in Safari.";
   } else if (isIOSSafari) {
     btnText = "Install LMPLOG";
-    btnClasses += "bg-[#e52425] text-black shadow-[0_0_20px_rgba(229, 36, 37,0.4)] active:scale-95";
+    btnClasses += "bg-[#0991e8] text-black shadow-[0_0_20px_rgba(9, 145, 232,0.4)] active:scale-95";
     hintText = "Add LMPLOG to your Home Screen from the Safari share menu.";
   } else if (isAndroid) {
     if (installState === 'accepted') {
@@ -111,21 +111,21 @@ export default function InstallEnforcer({ children }: { children: React.ReactNod
       hintText = "Installation cancelled. Please refresh the page to try again.";
     } else if (installState === 'ready') {
       btnText = "Install LMPLOG";
-      btnClasses += "bg-[#e52425] text-black shadow-[0_0_20px_rgba(229, 36, 37,0.4)] active:scale-95";
+      btnClasses += "bg-[#0991e8] text-black shadow-[0_0_20px_rgba(9, 145, 232,0.4)] active:scale-95";
     } else {
       btnText = "Install LMPLOG";
       btnClasses += "bg-white/10 text-white/50 cursor-wait";
       hintText = "Preparing installation...";
     }
   } else {
-    btnClasses += "bg-[#e52425] text-black shadow-[0_0_20px_rgba(229, 36, 37,0.4)] active:scale-95";
+    btnClasses += "bg-[#0991e8] text-black shadow-[0_0_20px_rgba(9, 145, 232,0.4)] active:scale-95";
   }
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans flex flex-col items-center justify-center p-6 relative overflow-hidden">
       
       {/* Background styling elements */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#e52425]/50 rounded-full mix-blend-screen filter blur-[120px] animate-pulse-slow"></div>
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#0991e8]/50 rounded-full mix-blend-screen filter blur-[120px] animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[#c084fc]/50 rounded-full mix-blend-screen filter blur-[120px] animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg==')] opacity-10 pointer-events-none"></div>
 
@@ -133,7 +133,7 @@ export default function InstallEnforcer({ children }: { children: React.ReactNod
 
       <div className="z-10 text-center max-w-sm">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1008 1024"
-          className="w-20 h-20 text-[#e52425] fill-none relative z-10 shrink-0 mx-auto animate-float"
+          className="w-20 h-20 text-[#0991e8] fill-none relative z-10 shrink-0 mx-auto animate-float"
         >
             <mask id="z-cutout-enforcer">
               <rect width="100%" height="100%" fill="white" />
@@ -145,7 +145,7 @@ export default function InstallEnforcer({ children }: { children: React.ReactNod
             <path mask="url(#z-cutout-enforcer)" fill="currentColor" d="M 377.00 21.00 C 399.33 21.00 421.67 21.00 444.00 21.00 C 450.35 20.39 457.96 20.00 465.00 20.00 C 492.00 20.00 519.00 20.00 546.00 20.00 C 552.71 20.00 560.05 20.42 566.00 21.00 C 589.00 21.00 612.00 21.00 635.00 21.00 C 681.83 21.00 729.28 18.47 776.00 21.00 C 805.60 22.61 840.32 26.80 865.23 41.77 C 890.14 56.74 909.45 67.07 928.30 89.70 C 947.16 112.32 959.08 130.97 969.31 159.69 C 979.54 188.42 983.56 223.25 982.00 257.00 C 980.44 290.75 983.88 330.93 982.00 366.00 C 980.12 401.07 983.80 439.52 982.00 475.00 C 980.20 510.47 983.32 547.65 982.00 583.00 C 980.68 618.35 982.30 657.29 982.00 692.00 C 981.70 726.71 980.94 767.22 981.01 800.01 C 981.07 832.79 973.30 862.19 960.08 889.08 C 946.85 915.96 934.05 931.88 911.92 951.92 C 889.79 971.95 871.43 983.68 842.32 993.32 C 813.22 1002.97 778.93 1007.18 745.00 1006.00 C 711.07 1004.82 670.52 1004.88 635.00 1005.00 C 599.48 1005.12 559.84 1004.89 524.00 1005.00 C 488.16 1005.11 449.50 1004.82 414.00 1005.00 C 378.50 1005.18 337.29 1004.64 303.00 1005.00 C 268.71 1005.36 227.82 1007.79 197.00 1002.00 C 166.18 996.21 143.24 986.40 120.25 968.75 C 97.26 951.09 78.40 939.23 64.25 913.75 C 50.09 888.28 37.28 865.21 32.00 835.00 C 26.73 804.79 27.00 761.35 27.00 729.00 C 27.00 720.32 27.23 710.91 28.00 703.00 C 28.00 678.67 28.00 654.33 28.00 630.00 C 28.00 623.00 28.00 616.00 28.00 609.00 C 28.00 543.94 28.00 479.56 28.00 415.00 C 28.00 409.41 27.51 403.57 28.00 398.00 C 28.31 394.42 29.00 390.88 29.00 387.00 C 28.42 380.98 28.00 373.71 28.00 367.00 C 28.00 363.00 28.00 359.00 28.00 355.00 C 28.00 322.25 25.80 280.18 27.00 248.00 C 28.20 215.82 31.85 182.82 43.32 155.32 C 54.79 127.82 65.09 109.21 84.75 87.75 C 104.41 66.29 122.06 54.84 147.23 41.23 C 172.40 27.61 206.69 22.59 236.00 21.00 C 282.68 18.47 330.24 21.00 377.00 21.00 Z" />
         </svg>
         <div className="flex flex-col justify-center relative z-10 mb-8 mt-2 text-center">
-          <h1 className="text-3xl tracking-[0.2em] text-[#e52425] font-black leading-none">LMPLOG</h1>
+          <h1 className="text-3xl tracking-[0.2em] text-[#0991e8] font-black leading-none">LMPLOG</h1>
         </div>
         
         <h2 className="text-3xl font-black tracking-tight mb-4">{"You're almost there!"}</h2>
@@ -183,15 +183,15 @@ export default function InstallEnforcer({ children }: { children: React.ReactNod
             
             <div className="space-y-4 mb-8">
               <div className="flex gap-4 items-start">
-                <div className="w-6 h-6 rounded-full bg-[#e52425]/20 text-[#e52425] flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">1</div>
+                <div className="w-6 h-6 rounded-full bg-[#0991e8]/20 text-[#0991e8] flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">1</div>
                 <div className="text-white/80 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: "Tap the <strong>Share</strong> button in Safari's toolbar." }}></div>
               </div>
               <div className="flex gap-4 items-start">
-                <div className="w-6 h-6 rounded-full bg-[#e52425]/20 text-[#e52425] flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">2</div>
+                <div className="w-6 h-6 rounded-full bg-[#0991e8]/20 text-[#0991e8] flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">2</div>
                 <div className="text-white/80 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: "Scroll the share sheet and tap <strong>\"Add to Home Screen\"</strong>." }}></div>
               </div>
               <div className="flex gap-4 items-start">
-                <div className="w-6 h-6 rounded-full bg-[#e52425]/20 text-[#e52425] flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">3</div>
+                <div className="w-6 h-6 rounded-full bg-[#0991e8]/20 text-[#0991e8] flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">3</div>
                 <div className="text-white/80 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: "Tap <strong>Add</strong> in the top right corner." }}></div>
               </div>
             </div>

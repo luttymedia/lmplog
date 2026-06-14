@@ -1497,9 +1497,9 @@ export default function App() {
                       <button
                         id="driveRestoreBtn"
                         onClick={handleDriveRestore}
-                        className="flex flex-col items-center justify-center gap-1.5 p-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-blue-500/10 hover:border-blue-500/30 transition-all"
+                        className="flex flex-col items-center justify-center gap-1.5 p-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-violet-500/10 hover:border-violet-500/30 transition-all"
                       >
-                        <CloudDownload className="w-5 h-5 text-blue-400" />
+                        <CloudDownload className="w-5 h-5 text-violet-400" />
                         <span className="text-[11px] font-bold text-white/80">{"Restore from Drive"}</span>
                       </button>
                     </div>
@@ -1839,13 +1839,13 @@ export default function App() {
                     setMoveSessionModal(null);
                   }}
                   className={`w-full p-3.5 rounded-xl border flex items-center gap-3 transition-all text-left ${moveSessionModal.currentGroupId === group.id
-                    ? 'bg-blue-500/20 border-blue-500 text-blue-400 font-semibold'
+                    ? 'bg-violet-500/20 border-violet-500 text-violet-400 font-semibold'
                     : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80'
                     }`}
                 >
-                  <Folder className="w-5 h-5 opacity-60 text-blue-400" />
+                  <Folder className="w-5 h-5 opacity-60 text-violet-400" />
                   <div className="flex-1 text-sm truncate">{group.name}</div>
-                  {moveSessionModal.currentGroupId === group.id && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
+                  {moveSessionModal.currentGroupId === group.id && <CheckCircle2 className="w-4 h-4 text-violet-400" />}
                 </button>
               ))}
             </div>
@@ -2267,7 +2267,7 @@ export default function App() {
               {importPreview.transcripts && (
                 <div>
                   <span className="text-xs font-bold uppercase tracking-widest text-brand block">{"Clips Shared"}</span>
-                  <span className="text-xs text-blue-400 font-semibold block mt-1 font-sans">{`✓ ${importPreview.transcripts.length} Audio Clip Transcripts Included`}</span>
+                  <span className="text-xs text-violet-400 font-semibold block mt-1 font-sans">{`✓ ${importPreview.transcripts.length} Audio Clip Transcripts Included`}</span>
                 </div>
               )}
               {importPreview.parsedMediaFiles && importPreview.parsedMediaFiles.filter((f: any) => !f.isAudioEntry).length > 0 && (
@@ -2383,7 +2383,7 @@ export default function App() {
           <div className="space-y-8">
             {selectedGroupId && (
               <div className="flex items-center gap-2 text-sm font-bold text-white/40 uppercase tracking-widest">
-                <FolderOpen className="w-4 h-4 text-blue-400" />
+                <FolderOpen className="w-4 h-4 text-violet-400" />
                 <span>{`Folder: ${groups.find(g => g.id === selectedGroupId)?.name || ''}`}</span>
               </div>
             )}
@@ -2401,7 +2401,7 @@ export default function App() {
                 <>
                   <button
                     onClick={() => setFolderModal({ type: 'create', name: '' })}
-                    className="py-3.5 glass bg-blue-500/10 border-blue-500/20 text-blue-400 font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-500/20 transition-all rounded-2xl shadow-lg shadow-blue-500/10 flex-1 min-h-[52px]"
+                    className="py-3.5 glass bg-violet-500/10 border-violet-500/20 text-violet-400 font-bold text-sm flex items-center justify-center gap-2 hover:bg-violet-500/20 transition-all rounded-2xl shadow-lg shadow-violet-500/10 flex-1 min-h-[52px]"
                   >
                     <FolderPlus className="w-4 h-4" />
                     {"Folder"}
@@ -2451,10 +2451,10 @@ export default function App() {
                     <div
                       key={group.id}
                       onClick={() => navigateTo('list', null, group.id)}
-                      className="glass p-4.5 flex items-center gap-4 hover:bg-white/5 transition-all cursor-pointer border border-blue-500/10 rounded-2xl"
+                      className="glass p-4.5 flex items-center gap-4 hover:bg-white/5 transition-all cursor-pointer border border-violet-500/10 rounded-2xl"
                     >
-                      <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
-                        <Folder className="w-5 h-5 text-blue-400" />
+                      <div className="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+                        <Folder className="w-5 h-5 text-violet-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-semibold truncate text-white">{group.name}</h3>
