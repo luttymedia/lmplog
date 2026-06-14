@@ -6,6 +6,28 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.3.1',
+    date: '2026-06-14',
+    changes: [
+      'Fixed individual clip Expand/Collapse toggle logic in Review Mode',
+      'Removed deprecated Dance Style Glossary selector from Session Settings'
+    ]
+  },
+  {
+    version: '1.3.0',
+    date: '2026-06-14',
+    changes: [
+      'Replaced header icon and text with horizontal LMPLOG logo, centered in the header bar',
+      'Removed Export Session (PDF) button and modal',
+      'Review Mode redesigned: no separate header, grouped by clip with collapsible sections',
+      'Review Mode: compact single-line marker rows with dimmed/strikethrough resolved items',
+      'Review Mode: added per-clip editor notes (NotebookPen icon, purple when note exists)',
+      'Review Mode: added filter dropdown and Expand All / Collapse All controls',
+      'Review Mode button moved inline with session action buttons; active state highlighted',
+      'Review Mode button corners updated to match other UI buttons'
+    ]
+  },
+  {
     version: '1.2.0',
     date: '2026-06-14',
     changes: [

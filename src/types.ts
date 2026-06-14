@@ -77,4 +77,5 @@ export interface Clip {
   startedAt: number | null;
   endedAt: number | null;
   markers: Marker[];
+  notes?: string; // Editor notes for this clip (used in Review Mode)
 }

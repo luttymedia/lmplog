@@ -231,8 +231,7 @@ export default function App() {
   const [folderModal, setFolderModal] = useState<{ type: 'create' | 'rename', id?: string, name: string } | null>(null);
   const [deleteFolderModal, setDeleteFolderModal] = useState<{ id: string, name: string } | null>(null);
   const [deleteFolderAlsoSessions, setDeleteFolderAlsoSessions] = useState(false);
-  const [showExportConfirm, setShowExportConfirm] = useState(false);
-  const [exportIncludeAudioTranscripts, setExportIncludeAudioTranscripts] = useState(true);
+
 
   const [shareModal, setShareModal] = useState<{
     sessionId: string;
@@ -445,28 +444,6 @@ export default function App() {
   const showSpinner = (text: string) => setSpinnerText(text);
   const hideSpinner = () => setSpinnerText(null);
 
-  const handleExportBackup = async () => {
-    showSpinner('Creating backup...');
-    try {
-      const backup = await db.exportDatabase();
-      const json = JSON.stringify(backup);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `lmplog-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast("Backup downloaded successfully!");
-    } catch (e) {
-      console.error("Backup failed", e);
-      showToast("Failed to create backup", true);
-    } finally {
-      hideSpinner();
-    }
-  };
 
   const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1263,86 +1240,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Export Session Modal */}
-      {showExportConfirm && selectedSession && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-[60] p-6" onClick={() => setShowExportConfirm(false)}>
-          <div className="glass p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <Download className="w-5 h-5 text-brand" />
-              {"Export Session"}
-            </h3>
-            <p className="text-white/70 text-sm">
-              {"You are about to download this session (including all transcriptions, summary reports, and homework)."}
-            </p>
-
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{"Include Data"}</label>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={exportIncludeAudioTranscripts}
-                  onClick={() => setExportIncludeAudioTranscripts(!exportIncludeAudioTranscripts)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${exportIncludeAudioTranscripts ? 'bg-brand' : 'bg-white/20'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${exportIncludeAudioTranscripts ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-                <span className="text-sm text-white/80 font-medium">
-                  {"Include Audio Transcripts"}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-brand/10 border border-brand/20 p-3 rounded-xl flex items-start gap-3 mt-4">
-              <AlertTriangle className="w-5 h-5 text-brand shrink-0 mt-0.5" />
-              <p className="text-xs text-brand/90 leading-relaxed">
-                {"After clicking Download, your browser's Print dialog will open. Select 'Save as PDF' as the destination to save the file."}
-              </p>
-            </div>
-
-            <div className="flex gap-3 justify-end items-center mt-6">
-              <button
-                onClick={() => setShowExportConfirm(false)}
-                className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] cursor-pointer text-xs"
-              >
-                {"Cancel"}
-              </button>
-              <button
-                onClick={async () => {
-                  setShowExportConfirm(false);
-                  if (!exportIncludeAudioTranscripts) {
-                    document.body.classList.add('no-print-transcripts');
-                  } else {
-                    document.body.classList.remove('no-print-transcripts');
-                  }
-                  const dateStr = format(new Date(selectedSession.date), "yyyy-MM-dd");
-                  let fileName = `LMPLOG_${dateStr}`;
-                  if (selectedSession.title) {
-                    const safeTitle = selectedSession.title.replace(/[<>:"/\\|?*]/g, '_').trim();
-                    fileName = `LMPLOG_${safeTitle}`;
-                  }
-                  const originalTitle = document.title;
-                  document.title = fileName;
-                  setTimeout(() => {
-                    const handleCleanup = () => {
-                      document.title = originalTitle;
-                      window.removeEventListener('afterprint', handleCleanup);
-                      window.removeEventListener('focus', handleCleanup);
-                    };
-                    window.addEventListener('afterprint', handleCleanup);
-                    window.addEventListener('focus', handleCleanup);
-                    window.print();
-                    setTimeout(() => { document.title = originalTitle; }, 10000);
-                  }, 100);
-                }}
-                className="px-5 py-2.5 rounded-xl font-bold bg-brand hover:bg-brand-light text-black transition-colors shadow-lg shadow-brand/20 min-h-[44px] cursor-pointer text-xs"
-              >
-                {"Download"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Backup Reminder Modal */}
       {showBackupReminderModal && (
@@ -1535,7 +1432,28 @@ export default function App() {
                     {"Download a full backup of all your sessions, folder structures, vocabulary glossaries, and recorded audio files to your local device."}
                   </p>
                   <button
-                    onClick={handleExportBackup}
+                    onClick={async () => {
+                      showSpinner('Creating backup...');
+                      try {
+                        const backup = await db.exportDatabase();
+                        const json = JSON.stringify(backup);
+                        const blob = new Blob([json], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `lmplog-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showToast("Backup downloaded successfully!");
+                      } catch (e) {
+                        console.error("Backup failed", e);
+                        showToast("Failed to create backup", true);
+                      } finally {
+                        hideSpinner();
+                      }
+                    }}
                     className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 hover:border-brand/40 transition-all text-xs font-bold shadow-sm"
                   >
                     <Download className="w-4 h-4 text-brand" />
@@ -2314,7 +2232,7 @@ export default function App() {
       )}
 
       {/* Top Bar */}
-      <header className="max-w-2xl mx-auto w-full px-6 py-8 flex items-center justify-between">
+      <header className="max-w-2xl mx-auto w-full px-6 py-8 flex items-center justify-between relative">
         <div className="flex items-center gap-3">
           {(view === 'detail' || (view === 'list' && selectedGroupId !== null)) && (
             <button
@@ -2326,22 +2244,16 @@ export default function App() {
               <ChevronLeft className="w-6 h-6" />
             </button>
           )}
-          <button
-            onClick={() => navigateTo('list', null, null)}
-            className="hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-xl"
-            title={"Go to Home"}
-          >
-            <LMPLOGIcon className="w-10 h-10 text-brand shrink-0" />
-          </button>
-          <div className="flex flex-col justify-center">
-            <h1 className="text-lg uppercase tracking-[0.2em] text-brand font-bold leading-none">
-              {"LMPLOG"}
-            </h1>
-            <p className="text-xs font-bold tracking-tight text-white/90 mt-1 leading-none">
-              {"Session Notes"}
-            </p>
-          </div>
         </div>
+
+        {/* Centered logo — absolute so it's always perfectly centered */}
+        <button
+          onClick={() => navigateTo('list', null, null)}
+          className="absolute left-1/2 -translate-x-1/2 hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-xl"
+          title="Go to Home"
+        >
+          <img src="/icons/lmplogHLogo.png" alt="LMPLOG" className="h-8" />
+        </button>
 
         <div className="flex items-center gap-3">
           {view === 'list' && (
@@ -2353,23 +2265,7 @@ export default function App() {
               <Settings className="w-5 h-5 text-brand" />
             </button>
           )}
-          {view === 'detail' && selectedSession && (
-            <>
-              <button
-                onClick={() => {
-                  if (selectedSession.isDemo) {
-                    showToast("💡 You can export this session to a PDF document.", false);
-                  } else {
-                    setShowExportConfirm(true);
-                  }
-                }}
-                className="w-10 h-10 flex items-center justify-center glass rounded-full hover:bg-brand/20 text-brand transition-colors"
-                title={"Export to PDF"}
-              >
-                <Download className="w-5 h-5" />
-              </button>
-            </>
-          )}
+
           {deferredPrompt && (
             <button
               onClick={async () => {
@@ -3063,8 +2959,16 @@ function SessionDetail({
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between mt-4">
-          <div>
-            <button onClick={() => setIsReviewMode(true)} className="px-4 py-2 bg-white/5 text-white/90 text-sm font-medium rounded-full shadow-sm hover:bg-white/10 transition-colors border border-white/10">
+          <div className="flex items-center gap-2">
+
+            <button
+              onClick={() => setIsReviewMode(!isReviewMode)}
+              className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors border ${
+                isReviewMode
+                  ? 'bg-brand/20 text-brand border-brand shadow-sm shadow-brand/20'
+                  : 'bg-white/5 text-white/90 border-white/10 hover:bg-white/10'
+              }`}
+            >
               Review Mode
             </button>
           </div>
@@ -3176,38 +3080,6 @@ function SessionDetail({
                   ]}
                 />
               </div>
-
-              {/* Glossary Selector */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-white/40 flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-brand" />
-                  {"Dance Style Glossary"}
-                </label>
-                <CustomSelect
-                  value={tempGlossaryId}
-                  onChange={setTempGlossaryId}
-                  position="relative"
-                  options={[
-                    { value: 'auto', label: "Auto-Detect (AI)" },
-                    ...glossaries.map(g => ({ value: g.id, label: g.name })),
-                    { value: 'other', label: "Other (Specify...)" }
-                  ]}
-                />
-              </div>
-
-              {/* Specify Custom Dance Style */}
-              {tempGlossaryId === 'other' && (
-                <div className="flex flex-col gap-1.5 animate-in slide-in-from-top-1 duration-200">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-brand font-semibold">{"Specify Dance Style"}</label>
-                  <input
-                    type="text"
-                    placeholder={"e.g. Samba de Gafieira, West Coast Swing..."}
-                    value={tempCustomGlossaryStyle}
-                    onChange={(e) => setTempCustomGlossaryStyle(e.target.value)}
-                    className="bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand/50 transition-colors w-full placeholder:text-white/20"
-                  />
-                </div>
-              )}
 
 
             </div>
