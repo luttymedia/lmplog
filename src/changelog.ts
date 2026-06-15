@@ -6,6 +6,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.3.3',
+    date: '2026-06-15',
+    changes: [
+      'Fixed marker time inputs to allow deferred typing and smart parsing (e.g., typing "1455" sets the time to "14:55")',
+      'Fixed an issue where the +OUT button would not activate if the clip timer was never used',
+      'Session title no longer pre-fills with the date, defaulting to empty',
+      'Polished app header paddings for a tighter UI'
+    ]
+  },
+  {
     version: '1.3.2',
     date: '2026-06-15',
     changes: [

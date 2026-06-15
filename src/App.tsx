@@ -645,7 +645,7 @@ export default function App() {
       const newSession: Session = {
         ...data,
         id: crypto.randomUUID(),
-        title: data.title || getSessionDefaultTitle(Date.now()),
+        title: data.title || '',
         subtitle: '',
         date: data.date || Date.now(),
         groupId: selectedGroupId || undefined,
@@ -2232,7 +2232,7 @@ export default function App() {
       )}
 
       {/* Top Bar */}
-      <header className="max-w-2xl mx-auto w-full px-6 py-8 flex items-center justify-between relative">
+      <header className="max-w-2xl mx-auto w-full px-6 pt-4 pb-6 flex items-center justify-between relative">
         <div className="flex items-center gap-3">
           {(view === 'detail' || (view === 'list' && selectedGroupId !== null)) && (
             <button
@@ -2302,7 +2302,7 @@ export default function App() {
                 onClick={() => {
                   setIsNewSessionFlow(true);
                   setEditingSessionInfo({
-                    title: getSessionDefaultTitle(Date.now()),
+                    title: '',
                     date: Date.now(),
                     groupId: selectedGroupId || undefined
                   });
@@ -2442,7 +2442,7 @@ export default function App() {
                         <div className="absolute inset-0 bg-brand/20 blur-3xl rounded-full animate-pulse" />
                         <Sparkles className="w-full h-full text-brand/60 drop-shadow-[0_0_15px_rgba(45,212,191,0.5)] animate-pulse" style={{ animationDuration: '3s' }} />
                       </div>
-                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 tracking-tight">{"Ready for the next lesson?"}</h3>
+                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 tracking-tight">{"Ready to log your next session?"}</h3>
                       <p className="text-sm sm:text-base text-white/50 max-w-sm leading-relaxed">{"Tap the '+ Session' button to set up a new session."}</p>
                     </div>
                   ) : (

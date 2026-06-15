@@ -32,7 +32,7 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-6" onClick={onCancel}>
       <div className="bg-[#1e1e22]/95 border border-white/10 p-6 rounded-3xl max-w-md w-full shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        
+
         <div className="flex-none pb-4 border-b border-white/10 mb-4">
           <h2 className="text-xl font-bold text-white">
             {isNew ? 'New Session' : 'General Info'}
@@ -45,43 +45,43 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
         <div className="flex-1 overflow-y-auto pr-2 space-y-4">
           <div>
             <label className="block text-xs font-medium text-white/60 mb-1">Title</label>
-            <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors" 
+            <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors"
               value={data.title || ''} onChange={(e) => handleChange({ title: e.target.value })} placeholder="Session Title" autoFocus={isNew} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-white/60 mb-1">Date</label>
-              <input type="date" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white transition-colors" 
-                value={new Date(data.date || Date.now()).toISOString().split('T')[0]} 
+              <input type="date" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white transition-colors"
+                value={new Date(data.date || Date.now()).toISOString().split('T')[0]}
                 onChange={(e) => handleChange({ date: e.target.valueAsNumber || Date.now() })} />
             </div>
             <div>
               <label className="block text-xs font-medium text-white/60 mb-1">Location</label>
-              <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors" 
-                value={data.location || ''} onChange={(e) => handleChange({ location: e.target.value })} placeholder="Studio A" />
+              <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors"
+                value={data.location || ''} onChange={(e) => handleChange({ location: e.target.value })} placeholder="LMP Studio" />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-white/60 mb-1">Equipment</label>
-            <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors" 
+            <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors"
               value={data.equipment || ''} onChange={(e) => handleChange({ equipment: e.target.value })} placeholder="Camera, Lens, Mic..." />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-white/60 mb-1">Camera Settings</label>
-            <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors" 
+            <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors"
               value={data.cameraSettings || ''} onChange={(e) => handleChange({ cameraSettings: e.target.value })} placeholder="4K, 60fps, ISO 800..." />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-white/60 mb-1">General Notes</label>
-            <AutoGrowingTextarea 
-               value={data.generalNotes || ''} 
-               onChange={(e) => handleChange({ generalNotes: e.target.value })}
-               placeholder="Lighting notes, choreo details..."
-               className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none min-h-[80px] text-white placeholder-white/20 transition-colors"
+            <AutoGrowingTextarea
+              value={data.generalNotes || ''}
+              onChange={(e) => handleChange({ generalNotes: e.target.value })}
+              placeholder="Lighting notes, choreo details..."
+              className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none min-h-[80px] text-white placeholder-white/20 transition-colors"
             />
           </div>
         </div>

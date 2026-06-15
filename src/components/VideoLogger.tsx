@@ -56,6 +56,91 @@ function SortableClipCard({ id, children, isDraggable = true, isReordering = fal
 // Simple unique ID generator
 const generateId = () => Math.random().toString(36).substring(2, 15);
 
+export const formatTime = (ms: number) => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+export const parseTime = (timeStr: string): number => {
+  if (!timeStr.includes(':')) {
+    const raw = timeStr.replace(/\D/g, '');
+    if (raw.length === 3 || raw.length === 4) {
+      const secs = parseInt(raw.slice(-2), 10);
+      const mins = parseInt(raw.slice(0, -2), 10);
+      return (mins * 60 + secs) * 1000;
+    }
+  }
+
+  const parts = timeStr.split(':').map(Number);
+  let totalSeconds = 0;
+  if (parts.length === 3) {
+    totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    totalSeconds = parts[0] * 60 + parts[1];
+  } else if (parts.length === 1) {
+    totalSeconds = parts[0];
+  }
+  return isNaN(totalSeconds) ? 0 : totalSeconds * 1000;
+};
+
+const TimeInput = ({ 
+  valueMs, 
+  onChangeMs, 
+  className = '',
+  formatTime,
+  parseTime
+}: { 
+  valueMs: number; 
+  onChangeMs: (ms: number) => void;
+  className?: string;
+  formatTime: (ms: number) => string;
+  parseTime: (str: string) => number;
+}) => {
+  const [localVal, setLocalVal] = useState(formatTime(valueMs));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setLocalVal(formatTime(valueMs));
+    }
+  }, [valueMs, isFocused]);
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    const parsed = parseTime(localVal);
+    onChangeMs(parsed);
+    setLocalVal(formatTime(parsed));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      className={className}
+      value={isFocused ? localVal : formatTime(valueMs)}
+      onFocus={(e) => {
+        setIsFocused(true);
+        e.target.select();
+      }}
+      onChange={(e) => setLocalVal(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+    />
+  );
+};
+
 interface VideoLoggerProps {
   session: Session;
   updateSession: (id: string, changes: Partial<Session>) => void;
@@ -82,11 +167,11 @@ export default function VideoLogger({
   const [clips, setClips] = useState<Clip[]>([]);
   const [filterType, setFilterType] = useState<string>('All');
   const [clipToDelete, setClipToDelete] = useState<string | null>(null);
-  const [markerToDelete, setMarkerToDelete] = useState<{clipId: string, markerId: string} | null>(null);
+  const [markerToDelete, setMarkerToDelete] = useState<{ clipId: string, markerId: string } | null>(null);
   const [expandedClips, setExpandedClips] = useState<Record<string, boolean>>({});
   const [showingNoteInput, setShowingNoteInput] = useState<Record<string, boolean>>({});
   const [showingClipNote, setShowingClipNote] = useState<Record<string, boolean>>({});
-  
+
   // Real-time ticker for running clips
   const [, setTick] = useState(0);
 
@@ -123,7 +208,7 @@ export default function VideoLogger({
       const newIndex = clips.findIndex((c) => c.id === overId);
       const newClips = arrayMove(clips, oldIndex, newIndex) as Clip[];
       setClips(newClips);
-      
+
       const newOrder = newClips.map(c => c.id);
       updateSession(session.id, { cardOrder: newOrder });
     }
@@ -179,7 +264,7 @@ export default function VideoLogger({
     if (clip.startedAt) {
       inTime = clip.endedAt ? (clip.endedAt - clip.startedAt) : (Date.now() - clip.startedAt);
     }
-    
+
     const newMarker: Marker = {
       id: `m-${Date.now()}`,
       inTime,
@@ -211,7 +296,7 @@ export default function VideoLogger({
   const markOutTime = async (clipId: string, markerId: string) => {
     const clip = clips.find(c => c.id === clipId);
     if (!clip) return;
-    
+
     let outTime = 0;
     if (clip.startedAt) {
       outTime = clip.endedAt ? (clip.endedAt - clip.startedAt) : (Date.now() - clip.startedAt);
@@ -226,7 +311,7 @@ export default function VideoLogger({
     await saveClip(updatedClip);
     setMarkerToDelete(null);
   };
-  const deleteMarker = (clipId: string, markerId: string) => setMarkerToDelete({clipId, markerId});
+  const deleteMarker = (clipId: string, markerId: string) => setMarkerToDelete({ clipId, markerId });
 
   const executeDeleteClip = async (clipId: string) => {
     await db.deleteClip(clipId);
@@ -234,31 +319,6 @@ export default function VideoLogger({
     setClipToDelete(null);
   };
   const deleteClip = (clipId: string) => setClipToDelete(clipId);
-
-  const formatTime = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const parseTime = (timeStr: string): number => {
-    const parts = timeStr.split(':').map(Number);
-    let totalSeconds = 0;
-    if (parts.length === 3) {
-      totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-    } else if (parts.length === 2) {
-      totalSeconds = parts[0] * 60 + parts[1];
-    } else if (parts.length === 1) {
-      totalSeconds = parts[0];
-    }
-    return isNaN(totalSeconds) ? 0 : totalSeconds * 1000;
-  };
 
   // --- REVIEW MODE ---
   if (isReviewMode) {
@@ -269,7 +329,7 @@ export default function VideoLogger({
           {/* Filter + summary row */}
           <div className="flex items-center justify-between">
             <p className="text-sm text-white/40">
-              {clips.reduce((n, c) => n + c.markers.length, 0)} marker{clips.reduce((n, c) => n + c.markers.length, 0) !== 1 ? 's' : ''} across {clips.length} clip{clips.length !== 1 ? 's' : ''}
+              {clips.reduce((n, c) => n + c.markers.length, 0)} marker{clips.reduce((n, c) => n + c.markers.length, 0) !== 1 ? 's' : ''} / {clips.length} clip{clips.length !== 1 ? 's' : ''}
             </p>
             <div className="flex items-center gap-2">
               {clips.length > 0 && (
@@ -293,10 +353,10 @@ export default function VideoLogger({
                   value={filterType}
                   onChange={(val) => setFilterType(val)}
                   options={[
-                    {value: 'All', label: 'All Types'},
-                    {value: 'Cut', label: 'Cut'},
-                    {value: 'Zoom', label: 'Zoom'},
-                    {value: 'Note', label: 'Note'}
+                    { value: 'All', label: 'All Types' },
+                    { value: 'Cut', label: 'Cut' },
+                    { value: 'Zoom', label: 'Zoom' },
+                    { value: 'Note', label: 'Note' }
                   ]}
                   position="relative"
                 />
@@ -320,102 +380,100 @@ export default function VideoLogger({
 
                 return (
                   <div key={clip.id} className="bg-black/20 rounded-none border-b border-white/10 last:border-b-0 overflow-hidden">
-                  {/* Clip group header */}
-                  <div className="w-full flex items-center gap-3 px-4 py-3 bg-white/5">
-                    <button
-                      className="flex items-center gap-3 flex-1 text-left hover:opacity-80 transition-opacity"
-                      onClick={() => setExpandedClips(prev => ({ ...prev, [`review-${clip.id}`]: isCollapsed }))}
-                    >
-                      <span className="text-white/40 text-xs w-3">{isCollapsed ? '▶' : '▼'}</span>
-                      <span className="flex-1 font-semibold text-white/90 text-sm">{clip.title}</span>
-                      {markers.length > 0 && (
-                        <span className="text-xs text-white/40 font-medium">
-                          {resolvedCount}/{markers.length} done
-                        </span>
-                      )}
-                      {markers.length === 0 && (
-                        <span className="text-xs text-white/20 italic">no markers</span>
-                      )}
-                    </button>
-                    {/* Note toggle button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (clip.notes) {
-                          setShowingClipNote(prev => ({ ...prev, [clip.id]: !prev[clip.id] }));
-                        } else {
-                          setShowingClipNote(prev => ({ ...prev, [clip.id]: true }));
-                        }
-                      }}
-                      className={`p-1.5 rounded-lg transition-colors shrink-0 ${
-                        clip.notes
-                          ? 'text-purple-400 bg-purple-500/20 hover:bg-purple-500/30'
-                          : 'text-white/30 hover:text-white/70 hover:bg-white/10'
-                      }`}
-                      title={clip.notes ? (showingClipNote[clip.id] ? 'Hide edit note' : 'Show edit note') : 'Add edit note'}
-                    >
-                      <NotebookPen className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Clip note (editor note for this take) */}
-                  {showingClipNote[clip.id] && (
-                    <div className="px-4 pt-3 pb-1 border-b border-white/10 bg-purple-500/5">
-                      <AutoGrowingTextarea
-                        autoFocus={!clip.notes}
-                        rows={1}
-                        placeholder="Add editing notes for this take..."
-                        className="w-full bg-transparent text-sm text-purple-200/90 outline-none placeholder:text-white/20 resize-none py-0"
-                        value={clip.notes || ''}
-                        onChange={(e) => {
-                          const updated = { ...clip, notes: e.target.value };
-                          saveClip(updated);
-                        }}
-                        onBlur={() => {
-                          if (!clip.notes) setShowingClipNote(prev => ({ ...prev, [clip.id]: false }));
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Marker rows */}
-                  {!isCollapsed && markers.length > 0 && (
-                    <div className="divide-y divide-white/5">
-                      {markers.map((m, index) => (
-                        <div
-                          key={m.id}
-                          className={`flex items-center gap-3 px-4 py-2.5 transition-opacity ${m.isResolved ? 'opacity-35' : ''}`}
-                        >
-                          {/* Checkbox */}
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 rounded border-white/20 text-brand focus:ring-brand/50 cursor-pointer shrink-0 accent-brand"
-                            checked={!!m.isResolved}
-                            onChange={(e) => updateMarker(clip.id, m.id, { isResolved: e.target.checked })}
-                          />
-
-                          {/* Timecode */}
-                          <span className={`text-xs font-mono text-white/60 shrink-0 ${m.isResolved ? 'line-through' : ''}`}>
-                            {formatTime(m.inTime)}{m.outTime ? `–${formatTime(m.outTime)}` : ''}
+                    {/* Clip group header */}
+                    <div className="w-full flex items-center gap-3 px-4 py-3 bg-white/5">
+                      <button
+                        className="flex items-center gap-3 flex-1 text-left hover:opacity-80 transition-opacity"
+                        onClick={() => setExpandedClips(prev => ({ ...prev, [`review-${clip.id}`]: isCollapsed }))}
+                      >
+                        <span className="text-white/40 text-xs w-3">{isCollapsed ? '▶' : '▼'}</span>
+                        <span className="flex-1 font-semibold text-white/90 text-sm">{clip.title}</span>
+                        {markers.length > 0 && (
+                          <span className="text-xs text-white/40 font-medium">
+                            {resolvedCount}/{markers.length} done
                           </span>
-
-                          {/* Type pill */}
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                            m.type === 'Cut' ? 'bg-red-500/20 text-red-400' :
-                            m.type === 'Zoom' ? 'bg-blue-500/20 text-blue-400' :
-                            'bg-orange-500/20 text-orange-400'
-                          }`}>{m.type}</span>
-
-                          {/* Note */}
-                          {m.content && (
-                            <span className={`text-sm text-white/70 whitespace-pre-wrap break-words ${m.isResolved ? 'line-through' : ''}`}>
-                              {m.content}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                        )}
+                        {markers.length === 0 && (
+                          <span className="text-xs text-white/20 italic">no markers</span>
+                        )}
+                      </button>
+                      {/* Note toggle button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (clip.notes) {
+                            setShowingClipNote(prev => ({ ...prev, [clip.id]: !prev[clip.id] }));
+                          } else {
+                            setShowingClipNote(prev => ({ ...prev, [clip.id]: true }));
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors shrink-0 ${clip.notes
+                            ? 'text-purple-400 bg-purple-500/20 hover:bg-purple-500/30'
+                            : 'text-white/30 hover:text-white/70 hover:bg-white/10'
+                          }`}
+                        title={clip.notes ? (showingClipNote[clip.id] ? 'Hide edit note' : 'Show edit note') : 'Add edit note'}
+                      >
+                        <NotebookPen className="w-4 h-4" />
+                      </button>
                     </div>
-                  )}
+
+                    {/* Clip note (editor note for this take) */}
+                    {showingClipNote[clip.id] && (
+                      <div className="px-4 pt-3 pb-1 border-b border-white/10 bg-purple-500/5">
+                        <AutoGrowingTextarea
+                          autoFocus={!clip.notes}
+                          rows={1}
+                          placeholder="Add editing notes for this take..."
+                          className="w-full bg-transparent text-sm text-purple-200/90 outline-none placeholder:text-white/20 resize-none py-0"
+                          value={clip.notes || ''}
+                          onChange={(e) => {
+                            const updated = { ...clip, notes: e.target.value };
+                            saveClip(updated);
+                          }}
+                          onBlur={() => {
+                            if (!clip.notes) setShowingClipNote(prev => ({ ...prev, [clip.id]: false }));
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Marker rows */}
+                    {!isCollapsed && markers.length > 0 && (
+                      <div className="divide-y divide-white/5">
+                        {markers.map((m, index) => (
+                          <div
+                            key={m.id}
+                            className={`flex items-center gap-3 px-4 py-2.5 transition-opacity ${m.isResolved ? 'opacity-35' : ''}`}
+                          >
+                            {/* Checkbox */}
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-white/20 text-brand focus:ring-brand/50 cursor-pointer shrink-0 accent-brand"
+                              checked={!!m.isResolved}
+                              onChange={(e) => updateMarker(clip.id, m.id, { isResolved: e.target.checked })}
+                            />
+
+                            {/* Timecode */}
+                            <span className={`text-xs font-mono text-white/60 shrink-0 ${m.isResolved ? 'line-through' : ''}`}>
+                              {formatTime(m.inTime)}{m.outTime !== undefined ? `–${formatTime(m.outTime)}` : ''}
+                            </span>
+
+                            {/* Type pill */}
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.type === 'Cut' ? 'bg-red-500/20 text-red-400' :
+                                m.type === 'Zoom' ? 'bg-blue-500/20 text-blue-400' :
+                                  'bg-orange-500/20 text-orange-400'
+                              }`}>{m.type}</span>
+
+                            {/* Note */}
+                            {m.content && (
+                              <span className={`text-sm text-white/70 whitespace-pre-wrap break-words ${m.isResolved ? 'line-through' : ''}`}>
+                                {m.content}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -434,33 +492,33 @@ export default function VideoLogger({
         {/* CLIPS SECTION */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-             <h2 className="text-sm font-bold text-white/40 uppercase tracking-wider">Clips ({clips.length})</h2>
-             <div className="flex items-center gap-2">
-               {clips.length > 0 && (
-                 <button
-                   onClick={() => {
-                     const allExpanded = clips.every(c => expandedClips[c.id] !== false);
-                     const newState: Record<string, boolean> = {};
-                     clips.forEach(c => { newState[c.id] = !allExpanded; });
-                     setExpandedClips(newState);
-                   }}
-                   className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                   title={clips.every(c => expandedClips[c.id] !== false) ? 'Collapse all' : 'Expand all'}
-                 >
-                   {clips.every(c => expandedClips[c.id] !== false)
-                     ? <ChevronsDownUp className="w-4 h-4" />
-                     : <ChevronsUpDown className="w-4 h-4" />}
-                 </button>
-               )}
-               <button onClick={handleAddClip} className="text-sm font-medium text-brand hover:text-brand-light bg-brand/10 px-3 py-1 rounded-full">
-                 + Add Clip
-               </button>
-             </div>
+            <h2 className="text-sm font-bold text-white/40 uppercase tracking-wider">Clips ({clips.length})</h2>
+            <div className="flex items-center gap-2">
+              {clips.length > 0 && (
+                <button
+                  onClick={() => {
+                    const allExpanded = clips.every(c => expandedClips[c.id] !== false);
+                    const newState: Record<string, boolean> = {};
+                    clips.forEach(c => { newState[c.id] = !allExpanded; });
+                    setExpandedClips(newState);
+                  }}
+                  className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                  title={clips.every(c => expandedClips[c.id] !== false) ? 'Collapse all' : 'Expand all'}
+                >
+                  {clips.every(c => expandedClips[c.id] !== false)
+                    ? <ChevronsDownUp className="w-4 h-4" />
+                    : <ChevronsUpDown className="w-4 h-4" />}
+                </button>
+              )}
+              <button onClick={handleAddClip} className="text-sm font-medium text-brand hover:text-brand-light bg-brand/10 px-3 py-1 rounded-full">
+                + Add Clip
+              </button>
+            </div>
           </div>
 
           {clips.length === 0 ? (
             <div className="text-center py-10 text-white/40 bg-black/20 border border-dashed border-white/20 rounded-3xl">
-               No clips yet. Add one to start logging!
+              No clips yet. Add one to start logging!
             </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -475,16 +533,15 @@ export default function VideoLogger({
 
                     return (
                       <SortableClipCard key={clip.id} id={clip.id} isReordering={isReordering}>
-                        <div className={`bg-black/20 rounded-none overflow-hidden border-b last:border-b-0 transition-colors ${
-                          isRunning ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/20'
-                        }`}>
+                        <div className={`bg-black/20 rounded-none overflow-hidden border-b last:border-b-0 transition-colors ${isRunning ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/20'
+                          }`}>
                           {/* Clip Header */}
-                          <div 
+                          <div
                             className="p-3 border-b border-white/5 flex items-center justify-between bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
                             onClick={() => setExpandedClips(prev => ({ ...prev, [clip.id]: prev[clip.id] === false ? true : false }))}
                           >
-                            <input 
-                              type="text" 
+                            <input
+                              type="text"
                               className="font-semibold text-white bg-transparent outline-none flex-1 cursor-text"
                               value={clip.title}
                               onClick={e => e.stopPropagation()}
@@ -504,11 +561,10 @@ export default function VideoLogger({
                               {/* Timer Control */}
                               <div className="flex items-center justify-between bg-white/5 p-2 rounded-2xl">
                                 <div className="flex items-center gap-3">
-                                  <button 
+                                  <button
                                     onClick={() => toggleTimer(clip)}
-                                    className={`w-12 h-12 flex items-center justify-center rounded-full shadow-sm transition-all ${
-                                      isRunning ? 'bg-red-500/20 text-red-500 animate-pulse' : 'bg-black/40 text-white'
-                                    }`}
+                                    className={`w-12 h-12 flex items-center justify-center rounded-full shadow-sm transition-all ${isRunning ? 'bg-red-500/20 text-red-500 animate-pulse' : 'bg-black/40 text-white'
+                                      }`}
                                   >
                                     {isRunning ? '⏹' : '▶'}
                                   </button>
@@ -521,8 +577,8 @@ export default function VideoLogger({
                                     </div>
                                   </div>
                                 </div>
-                                
-                                <button 
+
+                                <button
                                   onClick={() => addMarker(clip)}
                                   className="px-4 py-2 text-sm font-medium rounded-xl transition-colors bg-brand text-black shadow-md hover:bg-brand-light active:scale-95"
                                 >
@@ -538,37 +594,39 @@ export default function VideoLogger({
                                     return (
                                       <div key={marker.id} className={`flex flex-col gap-2 py-3 ${index !== clip.markers.length - 1 ? 'border-b border-white/5' : ''}`}>
                                         <div className="flex items-center gap-2">
-                                          <input 
-                                            type="text" 
+                                          <TimeInput
                                             className="text-xs font-mono font-medium text-white/90 bg-black/40 px-2 py-1 rounded-md shadow-sm w-16 text-center border border-transparent outline-none focus:border-brand/50 transition-colors"
-                                            value={formatTime(marker.inTime)}
-                                            onChange={(e) => updateMarker(clip.id, marker.id, { inTime: parseTime(e.target.value) })}
+                                            valueMs={marker.inTime}
+                                            onChangeMs={(ms) => updateMarker(clip.id, marker.id, { inTime: ms })}
+                                            formatTime={formatTime}
+                                            parseTime={parseTime}
                                           />
-                                          {marker.outTime ? (
+                                          {marker.outTime !== undefined ? (
                                             <>
                                               <span className="text-white/40">-</span>
-                                              <input 
-                                                type="text" 
+                                              <TimeInput
                                                 className="text-xs font-mono font-medium text-white/90 bg-black/40 px-2 py-1 rounded-md shadow-sm w-16 text-center border border-transparent outline-none focus:border-brand/50 transition-colors"
-                                                value={formatTime(marker.outTime)}
-                                                onChange={(e) => updateMarker(clip.id, marker.id, { outTime: parseTime(e.target.value) })}
+                                                valueMs={marker.outTime}
+                                                onChangeMs={(ms) => updateMarker(clip.id, marker.id, { outTime: ms })}
+                                                formatTime={formatTime}
+                                                parseTime={parseTime}
                                               />
                                             </>
                                           ) : null}
-                                          {!marker.outTime && (
+                                          {marker.outTime === undefined && (
                                             <button onClick={() => markOutTime(clip.id, marker.id)} className="text-xs font-bold text-brand bg-brand/10 px-2 py-1 rounded-md hover:bg-brand/20">
                                               +OUT
                                             </button>
                                           )}
-                                          
+
                                           <div className="ml-auto w-24">
                                             <CustomSelect
                                               value={marker.type}
                                               onChange={(val) => updateMarker(clip.id, marker.id, { type: val as any })}
                                               options={[
-                                                {value: 'Cut', label: 'Cut'},
-                                                {value: 'Zoom', label: 'Zoom'},
-                                                {value: 'Note', label: 'Note'}
+                                                { value: 'Cut', label: 'Cut' },
+                                                { value: 'Zoom', label: 'Zoom' },
+                                                { value: 'Note', label: 'Note' }
                                               ]}
                                               position="relative"
                                             />
@@ -582,10 +640,11 @@ export default function VideoLogger({
 
                                           <button onClick={() => deleteMarker(clip.id, marker.id)} className="text-white/20 hover:text-red-500 ml-1">✕</button>
                                         </div>
-                                        
+
                                         {showNote && (
                                           <AutoGrowingTextarea
                                             autoFocus={showingNoteInput[marker.id] && !marker.content}
+                                            rows={1}
                                             placeholder="Add details..."
                                             className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-brand/50 transition-colors resize-none"
                                             value={marker.content}
