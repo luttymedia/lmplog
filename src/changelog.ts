@@ -6,6 +6,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.3.6',
+    date: new Date().toISOString().split('T')[0],
+    changes: [
+      'Added General Notes functionality to Review Mode',
+      'Added option to show Session Info notes in Review Mode'
+    ]
+  },
+  {
     version: '1.3.5',
     date: '2026-06-15',
     changes: [

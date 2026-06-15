@@ -39,6 +39,8 @@ export interface Session {
   equipment?: string;
   cameraSettings?: string;
   generalNotes?: string;
+  reviewNotes?: string; // Notes added directly in Review Mode
+  showGeneralNotesInReview?: boolean; // Toggle to show generalNotes in Review Mode
 }
 
 export interface SessionGroup {

@@ -83,6 +83,18 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
               placeholder="Lighting notes, choreo details..."
               className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none min-h-[80px] text-white placeholder-white/20 transition-colors"
             />
+            <label className="flex items-center gap-2 mt-2 cursor-pointer group w-fit">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={data.showGeneralNotesInReview || false}
+                  onChange={(e) => handleChange({ showGeneralNotesInReview: e.target.checked })}
+                />
+                <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
+              </div>
+              <span className="text-xs font-medium text-white/60 group-hover:text-white/80 transition-colors">Show in Review Mode</span>
+            </label>
           </div>
         </div>
 

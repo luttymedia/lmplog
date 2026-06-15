@@ -36,7 +36,8 @@ import {
   AudioLines,
   Play,
   CloudUpload,
-  CloudDownload
+  CloudDownload,
+  NotebookPen
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { format } from 'date-fns';
@@ -2774,6 +2775,7 @@ function SessionDetail({
   const [tempSubtitle, setTempSubtitle] = useState(session.subtitle ?? '');
   const [isReordering, setIsReordering] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
+  const [showReviewNotesUI, setShowReviewNotesUI] = useState(false);
   const [isNoteVisible, setIsNoteVisible] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -2973,7 +2975,20 @@ function SessionDetail({
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            {isReviewMode ? (
+              <button
+                onClick={() => setShowReviewNotesUI(!showReviewNotesUI)}
+                className={`p-2 rounded-xl border transition-colors flex items-center justify-center min-h-[38px] min-w-[38px] ${
+                  (session.reviewNotes || (session.showGeneralNotesInReview && session.generalNotes))
+                    ? 'bg-purple-500/20 border-purple-500/40 text-purple-300 shadow-sm'
+                    : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/80'
+                }`}
+                title="General Notes"
+              >
+                <NotebookPen className={`w-4 h-4 ${(session.reviewNotes || (session.showGeneralNotesInReview && session.generalNotes)) ? '' : 'text-brand'}`} />
+              </button>
+            ) : (
+              <button
                 onClick={() => {
                   if (session.isDemo) {
                     showToast("💡 You can reorder the items in this session.", false);
@@ -2986,6 +3001,7 @@ function SessionDetail({
               >
                 <GripHorizontal className="w-4 h-4" />
               </button>
+            )}
               <button
                 onClick={() => {
                   if (session.isDemo) {
@@ -3023,6 +3039,25 @@ function SessionDetail({
       </div>
 
       <div id="sessionDetailContent" className="mt-8">
+        {isReviewMode && showReviewNotesUI && (
+          <div className="mb-4 space-y-3">
+            {session.showGeneralNotesInReview && session.generalNotes && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">General Notes</h4>
+                <p className="text-sm text-white/80 whitespace-pre-wrap">{session.generalNotes}</p>
+              </div>
+            )}
+            <div className="bg-[#1a1a1d] border border-white/10 rounded-xl p-4 shadow-sm">
+              <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Review Notes</h4>
+              <AutoGrowingTextarea
+                value={session.reviewNotes || ''}
+                onChange={(e) => onUpdateSession({ reviewNotes: e.target.value })}
+                placeholder="Add your review notes here..."
+                className="w-full bg-transparent border-none focus:outline-none text-sm text-white placeholder-white/20 min-h-[60px]"
+              />
+            </div>
+          </div>
+        )}
         <VideoLogger 
             session={session} 
             updateSession={(id, changes) => onUpdateSession(changes)} 
