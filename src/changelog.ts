@@ -6,6 +6,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.3.2',
+    date: '2026-06-15',
+    changes: [
+      'Updated Backup & Restore to include video clips, markers, and recorded media',
+      'Redesigned Clip layout to be flush and edge-to-edge on mobile with square corners',
+      'Removed installation blocker screen on desktop browsers'
+    ]
+  },
+  {
     version: '1.3.1',
     date: '2026-06-14',
     changes: [

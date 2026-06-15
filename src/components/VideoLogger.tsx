@@ -308,17 +308,18 @@ export default function VideoLogger({
           {clips.length === 0 ? (
             <div className="text-center text-white/40 mt-10">No clips yet.</div>
           ) : (
-            clips.map(clip => {
-              let markers = clip.markers;
-              if (filterType !== 'All') {
-                markers = markers.filter(m => m.type === filterType);
-              }
+            <div className="flex flex-col border-y sm:border-x border-white/10 -mx-6 sm:mx-0">
+              {clips.map(clip => {
+                let markers = clip.markers;
+                if (filterType !== 'All') {
+                  markers = markers.filter(m => m.type === filterType);
+                }
 
-              const isCollapsed = expandedClips[`review-${clip.id}`] === false;
-              const resolvedCount = markers.filter(m => m.isResolved).length;
+                const isCollapsed = expandedClips[`review-${clip.id}`] === false;
+                const resolvedCount = markers.filter(m => m.isResolved).length;
 
-              return (
-                <div key={clip.id} className="bg-black/20 rounded-2xl border border-white/10 overflow-hidden">
+                return (
+                  <div key={clip.id} className="bg-black/20 rounded-none border-b border-white/10 last:border-b-0 overflow-hidden">
                   {/* Clip group header */}
                   <div className="w-full flex items-center gap-3 px-4 py-3 bg-white/5">
                     <button
@@ -415,9 +416,10 @@ export default function VideoLogger({
                       ))}
                     </div>
                   )}
-                </div>
-              );
-            })
+                  </div>
+                );
+              })}
+            </div>
           )}
         </main>
       </div>
@@ -463,7 +465,7 @@ export default function VideoLogger({
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={clips.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-4">
+                <div className="flex flex-col border-y sm:border-x border-white/10 -mx-6 sm:mx-0">
                   {clips.map((clip) => {
                     const isRunning = clip.startedAt && !clip.endedAt;
                     let elapsed = 0;
@@ -473,7 +475,7 @@ export default function VideoLogger({
 
                     return (
                       <SortableClipCard key={clip.id} id={clip.id} isReordering={isReordering}>
-                        <div className={`bg-black/20 rounded-3xl overflow-hidden border transition-colors ${
+                        <div className={`bg-black/20 rounded-none overflow-hidden border-b last:border-b-0 transition-colors ${
                           isRunning ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/20'
                         }`}>
                           {/* Clip Header */}

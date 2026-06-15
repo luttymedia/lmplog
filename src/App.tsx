@@ -1429,7 +1429,7 @@ export default function App() {
                     {"Backup Database"}
                   </h4>
                   <p className="text-xs text-white/60 leading-relaxed">
-                    {"Download a full backup of all your sessions, folder structures, vocabulary glossaries, and recorded audio files to your local device."}
+                    {"Download a full backup of all your sessions, folders, video clips, markers, and recorded media to your local device."}
                   </p>
                   <button
                     onClick={async () => {
@@ -1571,7 +1571,7 @@ export default function App() {
             <p className="text-white/70 text-sm leading-relaxed">
               {`Are you sure you want to restore the backup file "${restoreBackupFile.name}"?`}
               <br /><br />
-              {"This will overwrite and delete all your current local sessions, folders, settings, and audio recordings. This action cannot be undone."}
+              {"This will overwrite and delete all your current local sessions, folders, settings, video clips, markers, and recorded media. This action cannot be undone."}
             </p>
             <div className="flex gap-3 justify-end items-center mt-6">
               <button onClick={() => setRestoreBackupFile(null)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] text-sm">{"Cancel"}</button>
@@ -1592,7 +1592,7 @@ export default function App() {
             <p className="text-white/70 text-sm leading-relaxed">
               {"Are you sure you want to reset the app?"}
               <br /><br />
-              {"This will permanently delete all folders, sessions, settings, and audio clips from this device. This action cannot be undone."}
+              {"This will permanently delete all folders, sessions, settings, video clips, markers, and recorded media from this device. This action cannot be undone."}
             </p>
             <div className="flex gap-3 justify-end items-center mt-6">
               <button onClick={() => setShowResetConfirm(false)} className="px-5 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors min-h-[44px] text-sm">{"Cancel"}</button>

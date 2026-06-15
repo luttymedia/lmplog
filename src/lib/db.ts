@@ -125,6 +125,7 @@ export const db = {
     const audios = await db.getAudioEntries();
     const groups = await db.getGroups();
     const allMedia = await db.getAllMedia();
+    const clips = await db.getClips();
     
     // Convert each audio's audioBlob into a Base64 string for JSON compatibility
     const serializedAudios = [];
@@ -199,7 +200,8 @@ export const db = {
         sessions,
         audios: serializedAudios,
         groups,
-        media: serializedMedia
+        media: serializedMedia,
+        clips
       }
     };
   },
@@ -209,11 +211,11 @@ export const db = {
       throw new Error("Invalid backup file format");
     }
     
-    const { sessions, audios, groups } = backup.data;
+    const { sessions, audios, groups, clips } = backup.data;
     
     // 1. Clear database stores
     const dbInst = await dbStart();
-    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia'];
+    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia', 'clips'];
     const transaction = dbInst.transaction(storeNames, 'readwrite');
     storeNames.forEach(name => {
       transaction.objectStore(name).clear();
@@ -235,6 +237,13 @@ export const db = {
     if (Array.isArray(groups)) {
       for (const g of groups) {
         await db.saveGroup(g);
+      }
+    }
+
+    // 4. Restore Clips
+    if (Array.isArray(clips)) {
+      for (const c of clips) {
+        await db.saveClip(c);
       }
     }
 
@@ -304,7 +313,7 @@ export const db = {
 
   clearDatabase: async () => {
     const dbInst = await dbStart();
-    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia'];
+    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia', 'clips'];
     const transaction = dbInst.transaction(storeNames, 'readwrite');
     storeNames.forEach(name => {
       transaction.objectStore(name).clear();
