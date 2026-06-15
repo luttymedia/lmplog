@@ -296,12 +296,17 @@ export default function VideoLogger({
   const markOutTime = async (clipId: string, markerId: string) => {
     const clip = clips.find(c => c.id === clipId);
     if (!clip) return;
+    const marker = clip.markers.find(m => m.id === markerId);
+    if (!marker) return;
 
-    let outTime = 0;
+    let outTime = marker.inTime > 0 ? marker.inTime : 1000;
     if (clip.startedAt) {
-      outTime = clip.endedAt ? (clip.endedAt - clip.startedAt) : (Date.now() - clip.startedAt);
+      const elapsed = clip.endedAt ? (clip.endedAt - clip.startedAt) : (Date.now() - clip.startedAt);
+      if (elapsed > marker.inTime) {
+        outTime = elapsed;
+      }
     }
-    await updateMarker(clipId, markerId, { outTime: Math.max(0, outTime) });
+    await updateMarker(clipId, markerId, { outTime });
   };
 
   const executeDeleteMarker = async (clipId: string, markerId: string) => {
@@ -455,7 +460,7 @@ export default function VideoLogger({
 
                             {/* Timecode */}
                             <span className={`text-xs font-mono text-white/60 shrink-0 ${m.isResolved ? 'line-through' : ''}`}>
-                              {formatTime(m.inTime)}{m.outTime !== undefined ? `–${formatTime(m.outTime)}` : ''}
+                              {formatTime(m.inTime)}{m.outTime ? `–${formatTime(m.outTime)}` : ''}
                             </span>
 
                             {/* Type pill */}
@@ -601,19 +606,19 @@ export default function VideoLogger({
                                             formatTime={formatTime}
                                             parseTime={parseTime}
                                           />
-                                          {marker.outTime !== undefined ? (
+                                          {marker.outTime ? (
                                             <>
                                               <span className="text-white/40">-</span>
                                               <TimeInput
                                                 className="text-xs font-mono font-medium text-white/90 bg-black/40 px-2 py-1 rounded-md shadow-sm w-16 text-center border border-transparent outline-none focus:border-brand/50 transition-colors"
                                                 valueMs={marker.outTime}
-                                                onChangeMs={(ms) => updateMarker(clip.id, marker.id, { outTime: ms })}
+                                                onChangeMs={(ms) => updateMarker(clip.id, marker.id, { outTime: ms === 0 ? undefined : ms })}
                                                 formatTime={formatTime}
                                                 parseTime={parseTime}
                                               />
                                             </>
                                           ) : null}
-                                          {marker.outTime === undefined && (
+                                          {!marker.outTime && (
                                             <button onClick={() => markOutTime(clip.id, marker.id)} className="text-xs font-bold text-brand bg-brand/10 px-2 py-1 rounded-md hover:bg-brand/20">
                                               +OUT
                                             </button>

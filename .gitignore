@@ -26,3 +26,11 @@ dist-ssr
 # Env
 .env*
 !.env.example
+
+# Design & External Assets
+_design/
+design-assets/
+*.psd
+*.ai
+*.afdesign
+*.fig
