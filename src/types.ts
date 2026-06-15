@@ -65,7 +65,7 @@ export interface Marker {
   id: string;
   inTime: number;
   outTime?: number;
-  type: 'Cut' | 'Zoom' | 'Note';
+  type: 'Cut' | 'Zoom' | 'Note' | 'Music';
   content: string;
   isResolved?: boolean;
 }

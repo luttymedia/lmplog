@@ -6,6 +6,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.3.5',
+    date: '2026-06-15',
+    changes: [
+      'Added "Music" as a new marker type with a distinct pink badge in Review Mode'
+    ]
+  },
+  {
     version: '1.3.4',
     date: '2026-06-15',
     changes: [

@@ -363,7 +363,8 @@ export default function VideoLogger({
                     { value: 'All', label: 'All Types' },
                     { value: 'Cut', label: 'Cut' },
                     { value: 'Zoom', label: 'Zoom' },
-                    { value: 'Note', label: 'Note' }
+                    { value: 'Note', label: 'Note' },
+                    { value: 'Music', label: 'Music' }
                   ]}
                   position="relative"
                 />
@@ -468,7 +469,8 @@ export default function VideoLogger({
                             {/* Type pill */}
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.type === 'Cut' ? 'bg-red-500/20 text-red-400' :
                                 m.type === 'Zoom' ? 'bg-blue-500/20 text-blue-400' :
-                                  'bg-orange-500/20 text-orange-400'
+                                  m.type === 'Music' ? 'bg-pink-500/20 text-pink-400' :
+                                    'bg-orange-500/20 text-orange-400'
                               }`}>{m.type}</span>
 
                             {/* Note */}
@@ -633,7 +635,8 @@ export default function VideoLogger({
                                               options={[
                                                 { value: 'Cut', label: 'Cut' },
                                                 { value: 'Zoom', label: 'Zoom' },
-                                                { value: 'Note', label: 'Note' }
+                                                { value: 'Note', label: 'Note' },
+                                                { value: 'Music', label: 'Music' }
                                               ]}
                                               position="relative"
                                             />
