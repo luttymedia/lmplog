@@ -46,7 +46,7 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
           <div>
             <label className="block text-xs font-medium text-white/60 mb-1">Title</label>
             <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors"
-              value={data.title || ''} onChange={(e) => handleChange({ title: e.target.value })} placeholder="Session Title" autoFocus={isNew} />
+              value={data.title || ''} onChange={(e) => handleChange({ title: e.target.value })} placeholder="Session Title" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -128,6 +128,8 @@ const TimeInput = ({
   return (
     <input
       type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
       className={className}
       value={isFocused ? localVal : formatTime(valueMs)}
       onFocus={(e) => {
