@@ -6,6 +6,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.3.7',
+    date: new Date().toISOString().split('T')[0],
+    changes: [
+      'Added dynamic Splash Screen with seamless PWA handoff',
+      'Implemented Invisible Pen SVG drawing animation for startup'
+    ]
+  },
+  {
     version: '1.3.6',
     date: new Date().toISOString().split('T')[0],
     changes: [

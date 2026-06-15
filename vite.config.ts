@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
           description: 'LMPLOG - Video Production Logger',
           start_url: '/',
           display: 'standalone',
-          background_color: '#ffffff',
+          background_color: '#111c2e',
           theme_color: '#0991e8',
           icons: [
             {
