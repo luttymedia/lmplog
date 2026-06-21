@@ -6,8 +6,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.3.8',
+    date: '2026-06-22',
+    changes: [
+      'Added clip timer start-offset: tap the 00:00 display before starting a clip to set a custom starting timecode, aligning markers with camera footage when the timer was started late'
+    ]
+  },
+  {
     version: '1.3.7',
-    date: new Date().toISOString().split('T')[0],
+    date: '2026-06-21',
     changes: [
       'Added dynamic Splash Screen with seamless PWA handoff',
       'Implemented Invisible Pen SVG drawing animation for startup'

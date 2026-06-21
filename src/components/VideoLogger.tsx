@@ -174,6 +174,9 @@ export default function VideoLogger({
   const [showingNoteInput, setShowingNoteInput] = useState<Record<string, boolean>>({});
   const [showingClipNote, setShowingClipNote] = useState<Record<string, boolean>>({});
 
+  // Per-clip start-offset (ms) — set before pressing play to align with camera footage
+  const [clipOffsets, setClipOffsets] = useState<Record<string, number>>({});
+
   // Real-time ticker for running clips
   const [, setTick] = useState(0);
 
@@ -255,8 +258,9 @@ export default function VideoLogger({
       const endedClip = { ...clip, endedAt: Date.now() };
       await saveClip(endedClip);
     } else if (!clip.startedAt) {
-      // Start timer
-      const startedClip = { ...clip, startedAt: Date.now() };
+      // Start timer — subtract the offset so elapsed immediately shows the offset value
+      const offsetMs = clipOffsets[clip.id] ?? 0;
+      const startedClip = { ...clip, startedAt: Date.now() - offsetMs };
       await saveClip(startedClip);
     }
   };
@@ -578,11 +582,36 @@ export default function VideoLogger({
                                     {isRunning ? '⏹' : '▶'}
                                   </button>
                                   <div>
-                                    <div className="text-2xl font-mono tracking-tight font-light text-white/90">
-                                      {formatTime(elapsed)}
-                                    </div>
-                                    <div className="text-[10px] uppercase font-bold text-white/40 tracking-widest">
-                                      {isRunning ? 'Recording' : (clip.endedAt ? 'Ended' : 'Ready')}
+                                    {/* In Ready state: the time display is itself editable for offset */}
+                                    {!clip.startedAt ? (
+                                      <div className="flex items-center gap-1.5 group">
+                                        <TimeInput
+                                          className={`text-2xl font-mono tracking-tight font-light bg-transparent outline-none w-[4.5rem] transition-colors ${
+                                            (clipOffsets[clip.id] ?? 0) > 0 ? 'text-brand' : 'text-white/90'
+                                          } focus:text-brand`}
+                                          valueMs={clipOffsets[clip.id] ?? 0}
+                                          onChangeMs={(ms) =>
+                                            setClipOffsets(prev => ({ ...prev, [clip.id]: ms }))
+                                          }
+                                          formatTime={formatTime}
+                                          parseTime={parseTime}
+                                        />
+                                        <span className="text-white/20 group-focus-within:text-brand/50 transition-colors" title="Tap the time to set a start offset">✎</span>
+                                      </div>
+                                    ) : (
+                                      <div className="text-2xl font-mono tracking-tight font-light text-white/90">
+                                        {formatTime(elapsed)}
+                                      </div>
+                                    )}
+                                    <div className="text-[10px] uppercase font-bold tracking-widest mt-0.5">
+                                      {isRunning
+                                        ? <span className="text-red-400/70">Recording</span>
+                                        : clip.endedAt
+                                          ? <span className="text-white/40">Ended</span>
+                                          : (clipOffsets[clip.id] ?? 0) > 0
+                                            ? <span className="text-brand/60">Starting at {formatTime(clipOffsets[clip.id])}</span>
+                                            : <span className="text-white/40">Ready · tap time to offset</span>
+                                      }
                                     </div>
                                   </div>
                                 </div>
