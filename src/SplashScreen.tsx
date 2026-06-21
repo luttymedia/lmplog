@@ -8,6 +8,8 @@ interface SplashScreenProps {
 export default function SplashScreen({ children }: SplashScreenProps) {
   const [isAnimating, setIsAnimating] = useState(true);
 
+  const skip = () => setIsAnimating(false);
+
   // End animation after 3.5 seconds
   useEffect(() => {
     if (isAnimating) {
@@ -27,10 +29,11 @@ export default function SplashScreen({ children }: SplashScreenProps) {
       <AnimatePresence>
         {isAnimating && (
           <motion.div
-            className="fixed inset-0 z-[9998] flex items-center justify-center"
+            className="fixed inset-0 z-[9998] flex items-center justify-center cursor-pointer select-none"
             initial={{ opacity: 1 }}
             exit={{ opacity: [1, 1, 0] }}
             transition={{ duration: 0.6, times: [0, 0.8, 1], ease: "easeInOut" }}
+            onClick={skip}
           >
             {/* The dark background matching the Native Splash background */}
             <div className="absolute inset-0 bg-[#111c2e]" style={{ background: 'radial-gradient(circle at 50% 0%, #1e2f4a 0%, #111c2e 70%)' }} />
@@ -43,6 +46,7 @@ export default function SplashScreen({ children }: SplashScreenProps) {
             >
               <InvisiblePenLogo />
             </motion.div>
+
           </motion.div>
         )}
       </AnimatePresence>

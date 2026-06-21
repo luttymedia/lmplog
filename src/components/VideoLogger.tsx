@@ -90,14 +90,14 @@ export const parseTime = (timeStr: string): number => {
   return isNaN(totalSeconds) ? 0 : totalSeconds * 1000;
 };
 
-const TimeInput = ({ 
-  valueMs, 
-  onChangeMs, 
+const TimeInput = ({
+  valueMs,
+  onChangeMs,
   className = '',
   formatTime,
   parseTime
-}: { 
-  valueMs: number; 
+}: {
+  valueMs: number;
   onChangeMs: (ms: number) => void;
   className?: string;
   formatTime: (ms: number) => string;
@@ -420,8 +420,8 @@ export default function VideoLogger({
                           }
                         }}
                         className={`p-1.5 rounded-lg transition-colors shrink-0 ${clip.notes
-                            ? 'text-purple-400 bg-purple-500/20 hover:bg-purple-500/30'
-                            : 'text-white/30 hover:text-white/70 hover:bg-white/10'
+                          ? 'text-purple-400 bg-purple-500/20 hover:bg-purple-500/30'
+                          : 'text-white/30 hover:text-white/70 hover:bg-white/10'
                           }`}
                         title={clip.notes ? (showingClipNote[clip.id] ? 'Hide edit note' : 'Show edit note') : 'Add edit note'}
                       >
@@ -472,9 +472,9 @@ export default function VideoLogger({
 
                             {/* Type pill */}
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.type === 'Cut' ? 'bg-red-500/20 text-red-400' :
-                                m.type === 'Zoom' ? 'bg-blue-500/20 text-blue-400' :
-                                  m.type === 'Music' ? 'bg-pink-500/20 text-pink-400' :
-                                    'bg-orange-500/20 text-orange-400'
+                              m.type === 'Zoom' ? 'bg-blue-500/20 text-blue-400' :
+                                m.type === 'Music' ? 'bg-pink-500/20 text-pink-400' :
+                                  'bg-orange-500/20 text-orange-400'
                               }`}>{m.type}</span>
 
                             {/* Note */}
@@ -586,9 +586,8 @@ export default function VideoLogger({
                                     {!clip.startedAt ? (
                                       <div className="flex items-center gap-1.5 group">
                                         <TimeInput
-                                          className={`text-2xl font-mono tracking-tight font-light bg-transparent outline-none w-[4.5rem] transition-colors ${
-                                            (clipOffsets[clip.id] ?? 0) > 0 ? 'text-brand' : 'text-white/90'
-                                          } focus:text-brand`}
+                                          className={`text-2xl font-mono tracking-tight font-light bg-transparent outline-none w-[4.5rem] transition-colors ${(clipOffsets[clip.id] ?? 0) > 0 ? 'text-brand' : 'text-white/90'
+                                            } focus:text-brand`}
                                           valueMs={clipOffsets[clip.id] ?? 0}
                                           onChangeMs={(ms) =>
                                             setClipOffsets(prev => ({ ...prev, [clip.id]: ms }))
@@ -610,7 +609,7 @@ export default function VideoLogger({
                                           ? <span className="text-white/40">Ended</span>
                                           : (clipOffsets[clip.id] ?? 0) > 0
                                             ? <span className="text-brand/60">Starting at {formatTime(clipOffsets[clip.id])}</span>
-                                            : <span className="text-white/40">Ready · tap time to offset</span>
+                                            : <span className="text-white/40">Ready · tap to offset</span>
                                       }
                                     </div>
                                   </div>
