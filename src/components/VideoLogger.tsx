@@ -3,7 +3,7 @@ import { Session, Clip, Marker, SessionMedia } from '../types';
 import { db } from '../lib/db';
 import { AutoGrowingTextarea } from './AutoGrowingTextarea';
 import { CustomSelect } from './CustomSelect';
-import { Trash2, MessageSquarePlus, ChevronsUpDown, ChevronsDownUp, NotebookPen } from 'lucide-react';
+import { Trash2, MessageSquarePlus, ChevronsUpDown, ChevronsDownUp, NotebookPen, Plus, RotateCcw } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -143,6 +143,48 @@ const TimeInput = ({
   );
 };
 
+// ─── ClipTitleInput: local state prevents cursor-jump on every keystroke ──────
+function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle }: {
+  clip: Clip;
+  onSave: (clip: Clip) => Promise<void>;
+  onDelete: () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const [localTitle, setLocalTitle] = useState(clip.title);
+
+  // Sync if parent title changes from outside (e.g. reorder, reload)
+  useEffect(() => {
+    setLocalTitle(clip.title);
+  }, [clip.title]);
+
+  const handleBlur = () => {
+    if (localTitle !== clip.title) {
+      onSave({ ...clip, title: localTitle });
+    }
+  };
+
+  return (
+    <div
+      className="p-3 border-b border-white/5 flex items-center justify-between bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+      onClick={onToggle}
+    >
+      <input
+        type="text"
+        className="font-semibold text-white bg-transparent outline-none flex-1 cursor-text"
+        value={localTitle}
+        onClick={e => e.stopPropagation()}
+        onChange={(e) => setLocalTitle(e.target.value)}
+        onBlur={handleBlur}
+      />
+      <div className="flex items-center gap-3">
+        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-white/20 hover:text-red-500 p-1">✕</button>
+        <span className="text-white/40 text-xs w-4 text-center">{isExpanded ? '▲' : '▼'}</span>
+      </div>
+    </div>
+  );
+}
+
 interface VideoLoggerProps {
   session: Session;
   updateSession: (id: string, changes: Partial<Session>) => void;
@@ -244,12 +286,19 @@ export default function VideoLogger({
     const newClip: Clip = {
       id: `clip-${Date.now()}`,
       sessionId: session.id,
-      title: `Take ${clips.length + 1}`,
+      title: `${clips.length + 1}`,
       startedAt: null,
       endedAt: null,
       markers: []
     };
     await saveClip(newClip);
+  };
+
+  const resetTimer = async (clip: Clip) => {
+    const resetClip = { ...clip, startedAt: null, endedAt: null };
+    await saveClip(resetClip);
+    // Also reset the offset for this clip
+    setClipOffsets(prev => ({ ...prev, [clip.id]: 0 }));
   };
 
   const toggleTimer = async (clip: Clip) => {
@@ -549,25 +598,13 @@ export default function VideoLogger({
                         <div className={`bg-black/20 rounded-none overflow-hidden border-b last:border-b-0 transition-colors ${isRunning ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/20'
                           }`}>
                           {/* Clip Header */}
-                          <div
-                            className="p-3 border-b border-white/5 flex items-center justify-between bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
-                            onClick={() => setExpandedClips(prev => ({ ...prev, [clip.id]: prev[clip.id] === false ? true : false }))}
-                          >
-                            <input
-                              type="text"
-                              className="font-semibold text-white bg-transparent outline-none flex-1 cursor-text"
-                              value={clip.title}
-                              onClick={e => e.stopPropagation()}
-                              onChange={(e) => {
-                                const updated = { ...clip, title: e.target.value };
-                                saveClip(updated);
-                              }}
-                            />
-                            <div className="flex items-center gap-3">
-                              <button onClick={(e) => { e.stopPropagation(); deleteClip(clip.id); }} className="text-white/20 hover:text-red-500 p-1">✕</button>
-                              <span className="text-white/40 text-xs w-4 text-center">{expandedClips[clip.id] === false ? '▼' : '▲'}</span>
-                            </div>
-                          </div>
+                          <ClipTitleInput
+                            clip={clip}
+                            onSave={saveClip}
+                            onDelete={() => deleteClip(clip.id)}
+                            isExpanded={expandedClips[clip.id] !== false}
+                            onToggle={() => setExpandedClips(prev => ({ ...prev, [clip.id]: prev[clip.id] === false ? true : false }))}
+                          />
 
                           {expandedClips[clip.id] !== false && (
                             <div className="p-4 space-y-4">
@@ -615,12 +652,24 @@ export default function VideoLogger({
                                   </div>
                                 </div>
 
-                                <button
-                                  onClick={() => addMarker(clip)}
-                                  className="px-4 py-2 text-sm font-medium rounded-xl transition-colors bg-brand text-black shadow-md hover:bg-brand-light active:scale-95"
-                                >
-                                  + Marker
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  {/* Reset Timer button — only shown when clip has ended */}
+                                  {clip.endedAt && !isRunning && (
+                                    <button
+                                      onClick={() => resetTimer(clip)}
+                                      title="Reset timer"
+                                      className="p-2 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                    >
+                                      <RotateCcw className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => addMarker(clip)}
+                                    className="px-4 py-2 text-sm font-medium rounded-xl transition-colors bg-brand text-black shadow-md hover:bg-brand-light active:scale-95"
+                                  >
+                                    + Marker
+                                  </button>
+                                </div>
                               </div>
 
                               {/* Markers List */}
@@ -709,6 +758,16 @@ export default function VideoLogger({
           )}
         </section>
       </main>
+
+      {/* FAB: Add Clip */}
+      <button
+        onClick={handleAddClip}
+        title="Add Clip"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 flex items-center justify-center rounded-full bg-brand text-black shadow-2xl hover:bg-brand-light active:scale-95 transition-all"
+        style={{ boxShadow: '0 4px 24px rgba(var(--brand-rgb, 139,92,246),0.5)' }}
+      >
+        <Plus className="w-6 h-6" strokeWidth={2.5} />
+      </button>
 
       {/* Modals */}
       {clipToDelete && (

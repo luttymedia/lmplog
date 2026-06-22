@@ -6,6 +6,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.3.9',
+    date: '2026-06-22',
+    changes: [
+      'Added FAB (floating action button) to add a new clip from anywhere on the screen without scrolling',
+      'New clips are now named with a plain number (1, 2, 3…) instead of "Take N"',
+      'Added Reset Timer button on ended clips, restoring the clip to its ready state without losing markers or notes',
+      'Fixed cursor jumping to end of word when editing text in the middle of any text field or textarea'
+    ]
+  },
+  {
     version: '1.3.8',
     date: '2026-06-22',
     changes: [
