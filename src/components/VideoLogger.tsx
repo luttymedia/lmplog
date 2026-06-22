@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-function SortableClipCard({ id, children, isDraggable = true, isReordering = false }: { id: string; children: React.ReactNode; isDraggable?: boolean; isReordering?: boolean; key?: React.Key }) {
+function SortableClipCard({ id, children, isDraggable = true, isReordering = false, zIndex }: { id: string; children: React.ReactNode; isDraggable?: boolean; isReordering?: boolean; key?: React.Key; zIndex?: number }) {
   const {
     attributes,
     listeners,
@@ -35,6 +35,7 @@ function SortableClipCard({ id, children, isDraggable = true, isReordering = fal
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    zIndex: isDragging ? 100 : zIndex,
     ...(isReordering ? { touchAction: 'none' } : {})
   };
 
@@ -164,7 +165,7 @@ const TimeInput = ({
 };
 
 // ─── ClipTitleInput: local state prevents cursor-jump on every keystroke ──────
-function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle, clipGroups, onAssignGroup }: {
+function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle, clipGroups, onAssignGroup, showGroupPicker, setShowGroupPicker }: {
   clip: Clip;
   onSave: (clip: Clip) => Promise<void>;
   onDelete: () => void;
@@ -172,9 +173,10 @@ function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle, clipGrou
   onToggle: () => void;
   clipGroups: ClipGroup[];
   onAssignGroup: (clip: Clip, groupId: string | undefined) => Promise<void>;
+  showGroupPicker: boolean;
+  setShowGroupPicker: (show: boolean) => void;
 }) {
   const [localTitle, setLocalTitle] = useState(clip.title);
-  const [showGroupPicker, setShowGroupPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // Sync if parent title changes from outside (e.g. reorder, reload)
@@ -220,7 +222,7 @@ function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle, clipGrou
         {clipGroups.length > 0 && (
           <div className="relative" ref={pickerRef}>
             <button
-              onClick={(e) => { e.stopPropagation(); setShowGroupPicker(v => !v); }}
+              onClick={(e) => { e.stopPropagation(); setShowGroupPicker(!showGroupPicker); }}
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors truncate max-w-[80px] ${
                 currentGroup
                   ? 'border-brand/40 text-brand bg-brand/10 hover:bg-brand/20'
@@ -360,6 +362,7 @@ export default function VideoLogger({
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [showingNoteInput, setShowingNoteInput] = useState<Record<string, boolean>>({});
   const [showingClipNote, setShowingClipNote] = useState<Record<string, boolean>>({});
+  const [activeGroupPickerClipId, setActiveGroupPickerClipId] = useState<string | null>(null);
 
   // Per-clip start-offset (ms) — set before pressing play to align with camera footage
   const [clipOffsets, setClipOffsets] = useState<Record<string, number>>({});
@@ -710,8 +713,8 @@ export default function VideoLogger({
     }
 
     return (
-      <SortableClipCard key={clip.id} id={clip.id} isReordering={isReordering}>
-        <div className={`bg-black/20 rounded-none overflow-hidden border-b last:border-b-0 transition-colors ${isRunning ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/20'
+      <SortableClipCard key={clip.id} id={clip.id} isReordering={isReordering} zIndex={activeGroupPickerClipId === clip.id ? 50 : 1}>
+        <div className={`bg-black/20 rounded-none border-b last:border-b-0 transition-colors ${isRunning ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/20'
           }`}>
           {/* Clip Header */}
           <ClipTitleInput
@@ -722,6 +725,8 @@ export default function VideoLogger({
             onToggle={() => setExpandedClips(prev => ({ ...prev, [clip.id]: prev[clip.id] === false ? true : false }))}
             clipGroups={clipGroups}
             onAssignGroup={assignClipToGroup}
+            showGroupPicker={activeGroupPickerClipId === clip.id}
+            setShowGroupPicker={(show) => setActiveGroupPickerClipId(show ? clip.id : null)}
           />
 
           {expandedClips[clip.id] !== false && (
