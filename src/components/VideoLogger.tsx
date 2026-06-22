@@ -705,7 +705,7 @@ export default function VideoLogger({
   };
 
   // ─── Clip card renderer (shared between group and orphan contexts) ──────────
-  const renderClipCard = (clip: Clip) => {
+  const renderClipCard = (clip: Clip, isOrphan: boolean = false) => {
     const isRunning = clip.startedAt && !clip.endedAt;
     let elapsed = 0;
     if (clip.startedAt) {
@@ -714,7 +714,7 @@ export default function VideoLogger({
 
     return (
       <SortableClipCard key={clip.id} id={clip.id} isReordering={isReordering} zIndex={activeGroupPickerClipId === clip.id ? 50 : 1}>
-        <div className={`bg-black/20 rounded-none border-b last:border-b-0 transition-colors ${isRunning ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/20'
+        <div className={`${isOrphan ? 'bg-brand/10' : 'bg-black/20'} rounded-none border-b last:border-b-0 transition-colors ${isRunning ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/20'
           }`}>
           {/* Clip Header */}
           <ClipTitleInput
@@ -891,15 +891,18 @@ export default function VideoLogger({
               {clips.length > 0 && (
                 <button
                   onClick={() => {
-                    const allExpanded = clips.every(c => expandedClips[`review-${c.id}`] !== false);
+                    const allExpanded = clips.every(c => expandedClips[`review-${c.id}`] !== false) && clipGroups.every(g => collapsedGroups[g.id] !== true);
                     const newState: Record<string, boolean> = {};
                     clips.forEach(c => { newState[`review-${c.id}`] = !allExpanded; });
                     setExpandedClips(prev => ({ ...prev, ...newState }));
+                    const newGroupsState: Record<string, boolean> = {};
+                    clipGroups.forEach(g => { newGroupsState[g.id] = allExpanded; });
+                    setCollapsedGroups(prev => ({ ...prev, ...newGroupsState }));
                   }}
                   className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                  title={clips.every(c => expandedClips[`review-${c.id}`] !== false) ? 'Collapse all' : 'Expand all'}
+                  title={(clips.every(c => expandedClips[`review-${c.id}`] !== false) && clipGroups.every(g => collapsedGroups[g.id] !== true)) ? 'Collapse all' : 'Expand all'}
                 >
-                  {clips.every(c => expandedClips[`review-${c.id}`] !== false)
+                  {(clips.every(c => expandedClips[`review-${c.id}`] !== false) && clipGroups.every(g => collapsedGroups[g.id] !== true))
                     ? <ChevronsDownUp className="w-4 h-4" />
                     : <ChevronsUpDown className="w-4 h-4" />}
                 </button>
@@ -946,7 +949,7 @@ export default function VideoLogger({
                 );
               })}
               {/* Orphans */}
-              {getOrphanClips().map(clip => renderReviewClip(clip))}
+              {getOrphanClips().map(clip => renderReviewClip(clip, true))}
             </div>
           )}
         </main>
@@ -955,7 +958,7 @@ export default function VideoLogger({
   }
 
   // Helper to render a single clip row in Review Mode
-  function renderReviewClip(clip: Clip) {
+  function renderReviewClip(clip: Clip, isOrphan: boolean = false) {
     let markers = clip.markers;
     if (filterType !== 'All') {
       markers = markers.filter(m => m.type === filterType);
@@ -964,7 +967,7 @@ export default function VideoLogger({
     const resolvedCount = markers.filter(m => m.isResolved).length;
 
     return (
-      <div key={clip.id} className="bg-black/20 rounded-none border-b border-white/10 last:border-b-0 overflow-hidden">
+      <div key={clip.id} className={`${isOrphan ? 'bg-brand/10' : 'bg-black/20'} rounded-none border-b border-white/10 last:border-b-0 overflow-hidden`}>
         {/* Clip group header */}
         <div className="w-full flex items-center gap-3 px-4 py-3 bg-white/5">
           <button
@@ -1072,15 +1075,18 @@ export default function VideoLogger({
               {clips.length > 0 && (
                 <button
                   onClick={() => {
-                    const allExpanded = clips.every(c => expandedClips[c.id] !== false);
+                    const allExpanded = clips.every(c => expandedClips[c.id] !== false) && clipGroups.every(g => collapsedGroups[g.id] !== true);
                     const newState: Record<string, boolean> = {};
                     clips.forEach(c => { newState[c.id] = !allExpanded; });
-                    setExpandedClips(newState);
+                    setExpandedClips(prev => ({ ...prev, ...newState }));
+                    const newGroupsState: Record<string, boolean> = {};
+                    clipGroups.forEach(g => { newGroupsState[g.id] = allExpanded; });
+                    setCollapsedGroups(prev => ({ ...prev, ...newGroupsState }));
                   }}
                   className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                  title={clips.every(c => expandedClips[c.id] !== false) ? 'Collapse all' : 'Expand all'}
+                  title={(clips.every(c => expandedClips[c.id] !== false) && clipGroups.every(g => collapsedGroups[g.id] !== true)) ? 'Collapse all' : 'Expand all'}
                 >
-                  {clips.every(c => expandedClips[c.id] !== false)
+                  {(clips.every(c => expandedClips[c.id] !== false) && clipGroups.every(g => collapsedGroups[g.id] !== true))
                     ? <ChevronsDownUp className="w-4 h-4" />
                     : <ChevronsUpDown className="w-4 h-4" />}
                 </button>
@@ -1160,7 +1166,7 @@ export default function VideoLogger({
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleOrphanDragEnd}>
                   <SortableContext items={orphanClips.map(c => c.id)} strategy={verticalListSortingStrategy}>
                     <div className="flex flex-col">
-                      {orphanClips.map(clip => renderClipCard(clip))}
+                      {orphanClips.map(clip => renderClipCard(clip, true))}
                     </div>
                   </SortableContext>
                 </DndContext>
