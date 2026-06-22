@@ -6,6 +6,28 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.4.1',
+    date: '2026-06-22',
+    changes: [
+      'Top Add Clip button now behaves like the FAB: adds to the last group when groups exist',
+      'Group names are no longer displayed in ALL CAPS',
+      'Groups can now be reordered via a drag handle on the left of the group header'
+    ]
+  },
+  {
+    version: '1.4.0',
+    date: '2026-06-22',
+    changes: [
+      'Added clip groups: organize clips into named groups within a session',
+      'Group header supports inline rename (tap to edit) and collapse/expand toggle',
+      'Each clip shows a group pill — tap to reassign it to any group or remove it from a group',
+      'FAB now adds clips directly into the last group when groups exist',
+      'Deleting a group never deletes its clips — they become ungrouped automatically',
+      'Groups are included in backup and restore',
+      'Existing clips automatically appear as ungrouped (no data migration required)'
+    ]
+  },
+    {
     version: '1.3.9',
     date: '2026-06-22',
     changes: [

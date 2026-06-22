@@ -80,4 +80,13 @@ export interface Clip {
   endedAt: number | null;
   markers: Marker[];
   notes?: string; // Editor notes for this clip (used in Review Mode)
+  groupId?: string; // Optional clip group ID — undefined means orphan
+}
+
+export interface ClipGroup {
+  id: string;
+  sessionId: string;
+  title: string;
+  order: number;       // creation timestamp, used for display order
+  clipOrder: string[]; // ordered clip IDs within this group
 }

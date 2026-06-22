@@ -1,7 +1,7 @@
-import { Session, AudioEntry, SessionGroup, SessionMedia, Clip } from '../types';
+import { Session, AudioEntry, SessionGroup, SessionMedia, Clip, ClipGroup } from '../types';
 
 const DB_NAME = 'LMPLogDB';
-const DB_VERSION = 4; // v4: added sessionMedia store
+const DB_VERSION = 5; // v5: added clipGroups store
 
 const base64ToBlob = (dataUrl: string): Blob => {
   const arr = dataUrl.split(',');
@@ -35,6 +35,9 @@ export const dbStart = (): Promise<IDBDatabase> => {
       }
       if (!db.objectStoreNames.contains('sessionMedia')) {
         db.createObjectStore('sessionMedia', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('clipGroups')) {
+        db.createObjectStore('clipGroups', { keyPath: 'id' });
       }
     };
 
@@ -105,7 +108,16 @@ export const db = {
     return all.filter(c => c.sessionId === sessionId);
   },
 
-  // Groups
+  // Clip Groups
+  saveClipGroup: (group: ClipGroup) => writeToDb('clipGroups', group),
+  getClipGroups: () => readAllFromDb<ClipGroup>('clipGroups'),
+  getSessionClipGroups: async (sessionId: string) => {
+    const all = await readAllFromDb<ClipGroup>('clipGroups');
+    return all.filter(g => g.sessionId === sessionId);
+  },
+  deleteClipGroup: (id: string) => deleteFromDb('clipGroups', id),
+
+  // Groups (session folders)
   saveGroup: (group: SessionGroup) => writeToDb('sessionGroups', group),
   getGroups: () => readAllFromDb<SessionGroup>('sessionGroups'),
   deleteGroup: (id: string) => deleteFromDb('sessionGroups', id),
@@ -126,7 +138,8 @@ export const db = {
     const groups = await db.getGroups();
     const allMedia = await db.getAllMedia();
     const clips = await db.getClips();
-    
+    const clipGroups = await db.getClipGroups();
+
     // Convert each audio's audioBlob into a Base64 string for JSON compatibility
     const serializedAudios = [];
     for (const entry of audios) {
@@ -201,7 +214,8 @@ export const db = {
         audios: serializedAudios,
         groups,
         media: serializedMedia,
-        clips
+        clips,
+        clipGroups
       }
     };
   },
@@ -215,7 +229,7 @@ export const db = {
     
     // 1. Clear database stores
     const dbInst = await dbStart();
-    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia', 'clips'];
+    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia', 'clips', 'clipGroups'];
     const transaction = dbInst.transaction(storeNames, 'readwrite');
     storeNames.forEach(name => {
       transaction.objectStore(name).clear();
@@ -244,6 +258,14 @@ export const db = {
     if (Array.isArray(clips)) {
       for (const c of clips) {
         await db.saveClip(c);
+      }
+    }
+
+    // 5. Restore Clip Groups
+    const clipGroupsToRestore = backup.data.clipGroups;
+    if (Array.isArray(clipGroupsToRestore)) {
+      for (const g of clipGroupsToRestore) {
+        await db.saveClipGroup(g);
       }
     }
 
@@ -313,7 +335,7 @@ export const db = {
 
   clearDatabase: async () => {
     const dbInst = await dbStart();
-    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia', 'clips'];
+    const storeNames = ['sessions', 'audios', 'sessionGroups', 'sessionMedia', 'clips', 'clipGroups'];
     const transaction = dbInst.transaction(storeNames, 'readwrite');
     storeNames.forEach(name => {
       transaction.objectStore(name).clear();
