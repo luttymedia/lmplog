@@ -105,7 +105,7 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
             {templates.map((t, i) => (
               <li key={i} className="flex items-center justify-between px-3 py-2 hover:bg-white/5 cursor-pointer text-sm text-white group" onClick={() => { handleChange({ [field]: t }); setActiveDropdown(null); }}>
                 <span className="truncate">{t}</span>
-                <button onClick={(e) => handleDeleteTemplate(field, t, e)} className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-red-400 transition-all p-1">
+                <button onClick={(e) => handleDeleteTemplate(field, t, e)} className="text-white/40 hover:text-red-400 transition-all p-1">
                   <Trash2 size={12} />
                 </button>
               </li>
