@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Session } from '../types';
 import { AutoGrowingTextarea } from './AutoGrowingTextarea';
+import { Save, FolderOpen, Check, Trash2 } from 'lucide-react';
 
 interface SessionInfoModalProps {
   initialData: Partial<Session>;
@@ -17,6 +18,14 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
     setData(initialData);
   }, [initialData]);
 
+  // Template states
+  const [locationTemplates, setLocationTemplates] = useState<string[]>(() => JSON.parse(localStorage.getItem('lmplog_template_location') || '[]'));
+  const [equipmentTemplates, setEquipmentTemplates] = useState<string[]>(() => JSON.parse(localStorage.getItem('lmplog_template_equipment') || '[]'));
+  const [cameraSettingsTemplates, setCameraSettingsTemplates] = useState<string[]>(() => JSON.parse(localStorage.getItem('lmplog_template_cameraSettings') || '[]'));
+
+  const [activeDropdown, setActiveDropdown] = useState<'location' | 'equipment' | 'cameraSettings' | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<'location' | 'equipment' | 'cameraSettings' | null>(null);
+
   const handleChange = (changes: Partial<Session>) => {
     setData(prev => ({ ...prev, ...changes }));
   };
@@ -29,9 +38,87 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
     onConfirm(data);
   };
 
+  const handleSaveTemplate = (field: 'location' | 'equipment' | 'cameraSettings') => {
+    const value = data[field]?.trim();
+    if (!value) return;
+
+    let templates: string[];
+    let setTemplates: React.Dispatch<React.SetStateAction<string[]>>;
+    let storageKey = `lmplog_template_${field}`;
+
+    if (field === 'location') { templates = locationTemplates; setTemplates = setLocationTemplates; }
+    else if (field === 'equipment') { templates = equipmentTemplates; setTemplates = setEquipmentTemplates; }
+    else { templates = cameraSettingsTemplates; setTemplates = setCameraSettingsTemplates; }
+
+    if (!templates.includes(value)) {
+      const newTemplates = [...templates, value];
+      setTemplates(newTemplates);
+      localStorage.setItem(storageKey, JSON.stringify(newTemplates));
+    }
+    
+    setSaveSuccess(field);
+    setTimeout(() => setSaveSuccess(null), 1500);
+  };
+
+  const handleDeleteTemplate = (field: 'location' | 'equipment' | 'cameraSettings', value: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    let templates: string[];
+    let setTemplates: React.Dispatch<React.SetStateAction<string[]>>;
+    let storageKey = `lmplog_template_${field}`;
+
+    if (field === 'location') { templates = locationTemplates; setTemplates = setLocationTemplates; }
+    else if (field === 'equipment') { templates = equipmentTemplates; setTemplates = setEquipmentTemplates; }
+    else { templates = cameraSettingsTemplates; setTemplates = setCameraSettingsTemplates; }
+
+    const newTemplates = templates.filter(t => t !== value);
+    setTemplates(newTemplates);
+    localStorage.setItem(storageKey, JSON.stringify(newTemplates));
+  };
+
+  const renderTemplateHeader = (field: 'location' | 'equipment' | 'cameraSettings', label: string) => (
+    <div className="flex items-center justify-between mb-1">
+      <label className="block text-xs font-medium text-white/60">{label}</label>
+      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <button onClick={() => handleSaveTemplate(field)} className="text-white/40 hover:text-white transition-colors" title="Save as template">
+          {saveSuccess === field ? <Check size={14} className="text-green-400" /> : <Save size={14} />}
+        </button>
+        <button onClick={() => setActiveDropdown(activeDropdown === field ? null : field)} className={`transition-colors ${activeDropdown === field ? 'text-brand' : 'text-white/40 hover:text-white'}`} title="Load template">
+          <FolderOpen size={14} />
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderTemplateDropdown = (field: 'location' | 'equipment' | 'cameraSettings') => {
+    if (activeDropdown !== field) return null;
+    let templates: string[];
+    if (field === 'location') templates = locationTemplates;
+    else if (field === 'equipment') templates = equipmentTemplates;
+    else templates = cameraSettingsTemplates;
+
+    return (
+      <div className="absolute top-[calc(100%+4px)] left-0 right-0 bg-[#2a2a30] border border-white/10 rounded-xl shadow-xl z-20 overflow-hidden" onClick={e => e.stopPropagation()}>
+        {templates.length === 0 ? (
+          <div className="p-3 text-xs text-white/40 text-center">No templates saved</div>
+        ) : (
+          <ul className="max-h-40 overflow-y-auto">
+            {templates.map((t, i) => (
+              <li key={i} className="flex items-center justify-between px-3 py-2 hover:bg-white/5 cursor-pointer text-sm text-white group" onClick={() => { handleChange({ [field]: t }); setActiveDropdown(null); }}>
+                <span className="truncate">{t}</span>
+                <button onClick={(e) => handleDeleteTemplate(field, t, e)} className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-red-400 transition-all p-1">
+                  <Trash2 size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-6" onClick={onCancel}>
-      <div className="bg-[#1e1e22]/95 border border-white/10 p-6 rounded-3xl max-w-md w-full shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#1e1e22]/95 border border-white/10 p-6 rounded-3xl max-w-md w-full shadow-2xl flex flex-col max-h-[90vh]" onClick={e => { e.stopPropagation(); setActiveDropdown(null); }}>
 
         <div className="flex-none pb-4 border-b border-white/10 mb-4">
           <h2 className="text-xl font-bold text-white">
@@ -56,23 +143,26 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
                 value={new Date(data.date || Date.now()).toISOString().split('T')[0]}
                 onChange={(e) => handleChange({ date: e.target.valueAsNumber || Date.now() })} />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-white/60 mb-1">Location</label>
+            <div className="relative">
+              {renderTemplateHeader('location', 'Location')}
               <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors"
                 value={data.location || ''} onChange={(e) => handleChange({ location: e.target.value })} placeholder="LMP Studio" />
+              {renderTemplateDropdown('location')}
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-white/60 mb-1">Equipment</label>
+          <div className="relative">
+            {renderTemplateHeader('equipment', 'Equipment')}
             <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors"
               value={data.equipment || ''} onChange={(e) => handleChange({ equipment: e.target.value })} placeholder="Camera, Lens, Mic..." />
+            {renderTemplateDropdown('equipment')}
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-white/60 mb-1">Camera Settings</label>
+          <div className="relative">
+            {renderTemplateHeader('cameraSettings', 'Camera Settings')}
             <input type="text" className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none text-white placeholder-white/20 transition-colors"
               value={data.cameraSettings || ''} onChange={(e) => handleChange({ cameraSettings: e.target.value })} placeholder="4K, 60fps, ISO 800..." />
+            {renderTemplateDropdown('cameraSettings')}
           </div>
 
           <div>

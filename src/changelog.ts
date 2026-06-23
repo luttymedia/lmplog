@@ -6,6 +6,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.4.2',
+    date: '2026-06-23',
+    changes: [
+      'Added ability to save and load templates for Location, Equipment, and Camera Settings in the General Info modal'
+    ]
+  },
+  {
     version: '1.4.1',
     date: '2026-06-22',
     changes: [
@@ -20,9 +27,9 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       'Added clip groups: organize clips into named groups within a session',
       'Group header supports inline rename (tap to edit) and collapse/expand toggle',
-      'Each clip shows a group pill � tap to reassign it to any group or remove it from a group',
+      'Each clip shows a group pill — tap to reassign it to any group or remove it from a group',
       'FAB now adds clips directly into the last group when groups exist',
-      'Deleting a group never deletes its clips � they become ungrouped automatically',
+      'Deleting a group never deletes its clips — they become ungrouped automatically',
       'Groups are included in backup and restore',
       'Existing clips automatically appear as ungrouped (no data migration required)'
     ]
@@ -32,7 +39,7 @@ export const changelog: ChangelogEntry[] = [
     date: '2026-06-22',
     changes: [
       'Added FAB (floating action button) to add a new clip from anywhere on the screen without scrolling',
-      'New clips are now named with a plain number (1, 2, 3…) instead of "Take N"',
+      'New clips are now named with a plain number (1, 2, 3â€¦) instead of "Take N"',
       'Added Reset Timer button on ended clips, restoring the clip to its ready state without losing markers or notes',
       'Fixed cursor jumping to end of word when editing text in the middle of any text field or textarea'
     ]
