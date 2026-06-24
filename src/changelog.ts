@@ -6,6 +6,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.4.3',
+    date: '2026-06-24',
+    changes: [
+      'Added manual and automatic \'Done\' state for clips in Review Mode',
+      'Completed clip groups (where all clips are marked done) now receive a green tint in Review Mode',
+      'Removed "no markers" text from empty clips in Review Mode for cleaner UI'
+    ]
+  },
+  {
     version: '1.4.2',
     date: '2026-06-23',
     changes: [

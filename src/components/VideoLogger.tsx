@@ -625,7 +625,18 @@ export default function VideoLogger({
 
     const updatedMarkers = clip.markers.map(m => m.id === markerId ? { ...m, ...changes } : m);
     updatedMarkers.sort((a, b) => a.inTime - b.inTime);
-    const updatedClip = { ...clip, markers: updatedMarkers };
+    
+    let isResolved = clip.isResolved;
+    if (changes.isResolved !== undefined) {
+      const allResolved = updatedMarkers.length > 0 && updatedMarkers.every(m => m.isResolved);
+      if (allResolved) {
+        isResolved = true;
+      } else if (!allResolved) {
+        isResolved = false;
+      }
+    }
+
+    const updatedClip = { ...clip, markers: updatedMarkers, isResolved };
     await saveClip(updatedClip);
   };
 
@@ -934,13 +945,16 @@ export default function VideoLogger({
                 const groupClips = getGroupClips(group.id);
                 if (groupClips.length === 0) return null;
                 const isGroupExpanded = collapsedGroups[group.id] !== true;
+                const allClipsDone = groupClips.length > 0 && groupClips.every(c => c.isResolved);
                 return (
                   <div key={group.id}>
                     <button
-                      className="w-full flex items-center gap-2 px-4 py-2 bg-white/5 border-b border-white/10 hover:bg-white/10 transition-colors"
+                      className={`w-full flex items-center gap-2 px-4 py-2 border-b border-white/10 transition-colors ${
+                        allClipsDone ? 'bg-green-500/10 hover:bg-green-500/20' : 'bg-white/5 hover:bg-white/10'
+                      }`}
                       onClick={() => setCollapsedGroups(prev => ({ ...prev, [group.id]: !prev[group.id] }))}
                     >
-                      <span className="text-white/30 text-xs">{isGroupExpanded ? '▼' : '▶'}</span>
+                      <span className={`${allClipsDone ? 'text-green-500/50' : 'text-white/30'} text-xs`}>{isGroupExpanded ? '▼' : '▶'}</span>
                       <span className="text-xs font-bold text-white/50 flex-1 text-left">{group.title}</span>
                       <span className="text-white/25 text-[10px]">{groupClips.length}</span>
                     </button>
@@ -967,24 +981,32 @@ export default function VideoLogger({
     const resolvedCount = markers.filter(m => m.isResolved).length;
 
     return (
-      <div key={clip.id} className={`${isOrphan ? 'bg-brand/10' : 'bg-black/20'} rounded-none border-b border-white/10 last:border-b-0 overflow-hidden`}>
+      <div key={clip.id} className={`${isOrphan ? 'bg-brand/10' : 'bg-black/20'} rounded-none border-b border-white/10 last:border-b-0 overflow-hidden ${clip.isResolved ? 'opacity-50' : ''}`}>
         {/* Clip group header */}
         <div className="w-full flex items-center gap-3 px-4 py-3 bg-white/5">
-          <button
-            className="flex items-center gap-3 flex-1 text-left hover:opacity-80 transition-opacity"
-            onClick={() => setExpandedClips(prev => ({ ...prev, [`review-${clip.id}`]: isCollapsed }))}
-          >
-            <span className="text-white/40 text-xs w-3">{isCollapsed ? '▶' : '▼'}</span>
-            <span className="flex-1 font-semibold text-white/90 text-sm">{clip.title}</span>
-            {markers.length > 0 && (
-              <span className="text-xs text-white/40 font-medium">
-                {resolvedCount}/{markers.length} done
-              </span>
-            )}
-            {markers.length === 0 && (
-              <span className="text-xs text-white/20 italic">no markers</span>
-            )}
-          </button>
+          <div className="flex items-center gap-3 flex-1">
+            <input
+              type="checkbox"
+              className="w-4 h-4 rounded border-white/20 text-brand focus:ring-brand/50 cursor-pointer shrink-0 accent-brand"
+              checked={!!clip.isResolved}
+              onChange={(e) => {
+                const updated = { ...clip, isResolved: e.target.checked };
+                saveClip(updated);
+              }}
+            />
+            <button
+              className="flex items-center gap-3 flex-1 text-left hover:opacity-80 transition-opacity"
+              onClick={() => setExpandedClips(prev => ({ ...prev, [`review-${clip.id}`]: isCollapsed }))}
+            >
+              <span className="text-white/40 text-xs w-3">{isCollapsed ? '▶' : '▼'}</span>
+              <span className={`flex-1 font-semibold text-sm ${clip.isResolved ? 'text-white/50 line-through' : 'text-white/90'}`}>{clip.title}</span>
+              {markers.length > 0 && (
+                <span className="text-xs text-white/40 font-medium">
+                  {resolvedCount}/{markers.length} done
+                </span>
+              )}
+            </button>
+          </div>
           {/* Note toggle button */}
           <button
             onClick={(e) => {

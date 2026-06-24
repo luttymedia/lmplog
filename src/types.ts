@@ -81,6 +81,7 @@ export interface Clip {
   markers: Marker[];
   notes?: string; // Editor notes for this clip (used in Review Mode)
   groupId?: string; // Optional clip group ID — undefined means orphan
+  isResolved?: boolean;
 }
 
 export interface ClipGroup {
