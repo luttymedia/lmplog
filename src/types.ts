@@ -12,6 +12,8 @@ export interface AudioEntry {
   strictSummary?: any;
   bulletPoints?: any;
   expandedInsights?: any;
+  pending_sync?: boolean;
+  deleted?: boolean;
 }
 
 export type StrictSummary = any;
@@ -41,6 +43,8 @@ export interface Session {
   generalNotes?: string;
   reviewNotes?: string; // Notes added directly in Review Mode
   showGeneralNotesInReview?: boolean; // Toggle to show generalNotes in Review Mode
+  pending_sync?: boolean;
+  deleted?: boolean;
 }
 
 export interface SessionGroup {
@@ -49,6 +53,8 @@ export interface SessionGroup {
   dateCreated: number;
   sessionOrder?: string[]; // IDs of sessions in preferred order in this folder
   folderOrder?: string[]; // IDs of folders in preferred order
+  pending_sync?: boolean;
+  deleted?: boolean;
 }
 
 export interface SessionMedia {
@@ -61,6 +67,8 @@ export interface SessionMedia {
   storageMode: 'reference' | 'blob';
   fileHandle?: any; // FileSystemFileHandle — Reference mode (Chrome/Edge desktop)
   blob?: Blob;      // Blob mode — Safari/Firefox/iOS fallback
+  pending_sync?: boolean;
+  deleted?: boolean;
 }
 
 export interface Marker {
@@ -82,6 +90,8 @@ export interface Clip {
   notes?: string; // Editor notes for this clip (used in Review Mode)
   groupId?: string; // Optional clip group ID — undefined means orphan
   isResolved?: boolean;
+  pending_sync?: boolean;
+  deleted?: boolean;
 }
 
 export interface ClipGroup {
@@ -90,4 +100,6 @@ export interface ClipGroup {
   title: string;
   order: number;       // creation timestamp, used for display order
   clipOrder: string[]; // ordered clip IDs within this group
+  pending_sync?: boolean;
+  deleted?: boolean;
 }

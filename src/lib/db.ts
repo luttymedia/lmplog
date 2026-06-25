@@ -46,44 +46,81 @@ export const dbStart = (): Promise<IDBDatabase> => {
   });
 };
 
-const writeToDb = async <T>(storeName: string, data: T): Promise<void> => {
-  const db = await dbStart();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    const request = store.put(data);
+const writeToDb = async <T extends { pending_sync?: boolean; deleted?: boolean }>(
+  storeName: string, data: T, isSyncOperation = false
+): Promise<void> => {
+  const dbInst = await dbStart();
+  const dataToSave = isSyncOperation ? data : { ...data, pending_sync: true, deleted: data.deleted || false };
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+  return new Promise((resolve, reject) => {
+    const transaction = dbInst.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    store.put(dataToSave);
+
+    transaction.oncomplete = () => {
+      resolve();
+      if (!isSyncOperation) {
+        window.dispatchEvent(new Event('lmplog-db-write'));
+      }
+    };
+    transaction.onerror = () => reject(transaction.error);
   });
 };
 
-const readAllFromDb = async <T>(storeName: string): Promise<T[]> => {
-  const db = await dbStart();
+const readAllFromDb = async <T extends { deleted?: boolean }>(
+  storeName: string, includeDeleted = false
+): Promise<T[]> => {
+  const dbInst = await dbStart();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readonly');
+    const transaction = dbInst.transaction(storeName, 'readonly');
     const store = transaction.objectStore(storeName);
     const request = store.getAll();
 
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const results = request.result as T[];
+      resolve(includeDeleted ? results : results.filter(item => !item.deleted));
+    };
     request.onerror = () => reject(request.error);
   });
 };
 
-const deleteFromDb = async (storeName: string, id: string): Promise<void> => {
-  const db = await dbStart();
+const deleteFromDb = async (storeName: string, id: string, isHardDelete = false): Promise<void> => {
+  const dbInst = await dbStart();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
+    const transaction = dbInst.transaction(storeName, 'readwrite');
     const store = transaction.objectStore(storeName);
-    const request = store.delete(id);
+    
+    if (isHardDelete) {
+      store.delete(id);
+    } else {
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const record = getReq.result;
+        if (record) {
+          record.deleted = true;
+          record.pending_sync = true;
+          store.put(record);
+        }
+      };
+    }
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => {
+      resolve();
+      if (!isHardDelete) {
+        window.dispatchEvent(new Event('lmplog-db-write'));
+      }
+    };
+    transaction.onerror = () => reject(transaction.error);
   });
 };
 
 // Typed helpers
 export const db = {
+  // Core methods for sync engine
+  writeToDbRaw: writeToDb,
+  readAllFromDbRaw: readAllFromDb,
+  deleteFromDbRaw: deleteFromDb,
+
   // Sessions
   saveSession: (session: Session) => writeToDb('sessions', session),
   getSessions: () => readAllFromDb<Session>('sessions'),

@@ -42,6 +42,10 @@ import {
 import imageCompression from 'browser-image-compression';
 import { format } from 'date-fns';
 import { db } from './lib/db';
+import { supabase } from './lib/supabase';
+import { syncEngine, initialCloudPull } from './lib/syncEngine';
+import { AuthModal } from './components/AuthModal';
+import { SyncConflictModal } from './components/SyncConflictModal';
 import { Session, AudioEntry, Language, SessionGroup, SessionMedia, StrictSummary, ExpandedInsights, DanceGlossary } from './types';
 
 import { LMPLOGIcon } from './components/LMPLOGIcon';
@@ -224,6 +228,11 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
+  // Advanced Auth & Sync State
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [showSyncConflict, setShowSyncConflict] = useState(false);
+
   // New features state
   const [groups, setGroups] = useState<SessionGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -274,6 +283,37 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
   const [showImportCodeModal, setShowImportCodeModal] = useState(false);
   const [importCodeValue, setImportCodeValue] = useState('');
+
+  // Supabase Auth State
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      if (session?.user) {
+        initialCloudPull();
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user || null);
+      if (session?.user && event === 'SIGNED_IN') {
+        const { hasLocalPending, hasCloudData } = await syncEngine.checkInitialSyncConflicts(session.user.id);
+        if (hasLocalPending && hasCloudData) {
+          setShowSyncConflict(true);
+        } else {
+          initialCloudPull();
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const handleDbWrite = () => syncEngine.scheduleSync();
+    window.addEventListener('lmplog-db-write', handleDbWrite);
+    return () => window.removeEventListener('lmplog-db-write', handleDbWrite);
+  }, []);
 
   // Browser History Navigation Sync
   const navigateTo = (newView: 'list' | 'detail', newSessionId: string | null, newGroupId: string | null, historyAction: 'push' | 'replace' | 'none' = 'push') => {
@@ -417,29 +457,32 @@ export default function App() {
   }, []);
 
   // Load from IndexedDB on mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const loadedSessions = await db.getSessions();
-        const loadedAudios = await db.getAudioEntries();
-        const loadedGroups = await db.getGroups();
+  const loadData = useCallback(async () => {
+    try {
+      const loadedSessions = await db.getSessions();
+      const loadedAudios = await db.getAudioEntries();
+      const loadedGroups = await db.getGroups();
 
-        // Sort sessions by date descending
-        loadedSessions.sort((a, b) => b.date - a.date);
-        setSessions(loadedSessions);
-        setGroups(loadedGroups);
+      // Sort sessions by date descending
+      loadedSessions.sort((a, b) => b.date - a.date);
+      setSessions(loadedSessions);
+      setGroups(loadedGroups);
 
-        // Convert audio entries array to record for easy lookup
-        const audioRecord: Record<string, AudioEntry> = {};
-        loadedAudios.forEach(a => audioRecord[a.id] = a);
-        setAudioEntries(audioRecord);
-      } catch (err) {
-        console.error("Failed to load IndexedDB", err);
-        showToast("Failed to load app data", true);
-      }
-    };
-    loadData();
+      // Convert audio entries array to record for easy lookup
+      const audioRecord: Record<string, AudioEntry> = {};
+      loadedAudios.forEach(a => audioRecord[a.id] = a);
+      setAudioEntries(audioRecord);
+    } catch (err) {
+      console.error("Failed to load IndexedDB", err);
+      showToast("Failed to load app data", true);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('lmplog-sync-complete', loadData);
+    return () => window.removeEventListener('lmplog-sync-complete', loadData);
+  }, [loadData]);
 
   const showToast = (text: string, isError = false, actionText?: string, onAction?: () => void, duration?: number) => setToastMessage({ text, isError, actionText, onAction, duration });
   const showSpinner = (text: string) => setSpinnerText(text);
@@ -1220,10 +1263,49 @@ export default function App() {
 
 
   // --- Renderers ---
+  if (!user && !isGuestMode) {
+    return (
+      <div className="min-h-screen bg-[#131315]">
+        <AuthModal 
+          isFullScreen={true}
+          onClose={() => {}}
+          onContinueAsGuest={() => {
+            setIsGuestMode(true);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen font-sans selection:bg-brand/30">
       {spinnerText && <Spinner text={spinnerText} />}
       {toastMessage && <Toast message={toastMessage.text} isError={toastMessage.isError} actionText={toastMessage.actionText} onAction={toastMessage.onAction} duration={toastMessage.duration} onClose={() => setToastMessage(null)} />}
+
+      {/* Sync Conflict Modal */}
+      {showSyncConflict && (
+        <SyncConflictModal
+          onMerge={async () => {
+            setShowSyncConflict(false);
+            await initialCloudPull();
+          }}
+          onDiscardLocal={async () => {
+            setShowSyncConflict(false);
+            showSpinner('Clearing local data...');
+            await db.clearDatabase();
+            hideSpinner();
+            await initialCloudPull();
+          }}
+          onDiscardCloud={async () => {
+            setShowSyncConflict(false);
+            if (user) {
+              showSpinner('Overwriting cloud data...');
+              await syncEngine.forcePushLocal(user.id);
+              hideSpinner();
+            }
+          }}
+        />
+      )}
 
       {/* Delete Modal */}
       {deleteModal && (
@@ -1301,6 +1383,51 @@ export default function App() {
 
             {/* Drawer Content */}
             <div className="flex-1 overflow-y-auto space-y-8 pr-6">
+
+              {/* Supabase Sync */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider flex-1">
+                    {"LMPLog Sync"}
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/20 text-brand border border-brand/30">
+                    {"Cross-Device"}
+                  </span>
+                </div>
+                {!user ? (
+                  <button
+                    onClick={() => { setShowAppSettings(false); setShowAuthModal(true); }}
+                    className="w-full flex items-center justify-center gap-2.5 p-4 rounded-xl border border-brand/30 bg-brand/10 text-white hover:bg-brand/20 hover:border-brand/50 transition-all text-sm font-bold shadow-sm shadow-brand/10"
+                  >
+                    {"Sign in to Sync"}
+                  </button>
+                ) : (
+                  <div className="p-4 rounded-xl border border-white/10 bg-white/5 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-brand/20 text-brand flex items-center justify-center font-bold">
+                          {user.email?.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-white">{user.email}</span>
+                          <span className="text-[10px] text-white/40">{"Sync Active"}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          await db.clearDatabase();
+                          await supabase.auth.signOut();
+                          window.location.reload();
+                        }}
+                        className="p-2 rounded-lg bg-white/5 hover:bg-red-500/10 hover:text-red-400 text-white/60 transition-colors"
+                        title="Sign Out"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Cloud Sync (Google Drive) — PRIMARY */}
               <div className="space-y-4">
@@ -2232,6 +2359,10 @@ export default function App() {
         </div>
       )}
 
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal onClose={() => setShowAuthModal(false)} />
+      )}
       {/* Top Bar */}
       <header className="max-w-2xl mx-auto w-full px-6 pt-4 pb-6 flex items-center justify-between relative">
         <div className="flex items-center gap-3">

@@ -6,6 +6,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.5.0',
+    date: '2026-06-25',
+    changes: [
+      'Added Supabase backend integration for cloud syncing',
+      'Implemented Real-Time sync so multiple devices automatically stay updated',
+      'Introduced a strict login wall and Guest Mode for offline-only usage',
+      'Added a Sync Conflict Resolution dialog for safe local/cloud data merging',
+      'Implemented secure local data wipe on sign out'
+    ]
+  },
+  {
     version: '1.4.4',
     date: '2026-06-25',
     changes: [
