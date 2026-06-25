@@ -6,6 +6,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.4.4',
+    date: '2026-06-25',
+    changes: [
+      'Added the total time elapsed of each clip to Review Mode, displayed discretely below the clip title'
+    ]
+  },
+  {
     version: '1.4.3',
     date: '2026-06-24',
     changes: [

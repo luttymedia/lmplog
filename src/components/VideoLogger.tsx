@@ -980,6 +980,11 @@ export default function VideoLogger({
     const isCollapsed = expandedClips[`review-${clip.id}`] === false;
     const resolvedCount = markers.filter(m => m.isResolved).length;
 
+    let elapsed = 0;
+    if (clip.startedAt) {
+      elapsed = clip.endedAt ? (clip.endedAt - clip.startedAt) : (Date.now() - clip.startedAt);
+    }
+
     return (
       <div key={clip.id} className={`${isOrphan ? 'bg-brand/10' : 'bg-black/20'} rounded-none border-b border-white/10 last:border-b-0 overflow-hidden ${clip.isResolved ? 'opacity-50' : ''}`}>
         {/* Clip group header */}
@@ -995,13 +1000,18 @@ export default function VideoLogger({
               }}
             />
             <button
-              className="flex items-center gap-3 flex-1 text-left hover:opacity-80 transition-opacity"
+              className="flex items-center gap-3 flex-1 text-left hover:opacity-80 transition-opacity min-w-0"
               onClick={() => setExpandedClips(prev => ({ ...prev, [`review-${clip.id}`]: isCollapsed }))}
             >
-              <span className="text-white/40 text-xs w-3">{isCollapsed ? '▶' : '▼'}</span>
-              <span className={`flex-1 font-semibold text-sm ${clip.isResolved ? 'text-white/50 line-through' : 'text-white/90'}`}>{clip.title}</span>
+              <span className="text-white/40 text-xs w-3 shrink-0">{isCollapsed ? '▶' : '▼'}</span>
+              <div className="flex-1 flex flex-col min-w-0">
+                <span className={`font-semibold text-sm truncate ${clip.isResolved ? 'text-white/50 line-through' : 'text-white/90'}`}>{clip.title}</span>
+                {elapsed > 0 && (
+                  <span className="text-[10px] text-white/40 font-mono mt-0.5">{formatTime(elapsed)}</span>
+                )}
+              </div>
               {markers.length > 0 && (
-                <span className="text-xs text-white/40 font-medium">
+                <span className="text-xs text-white/40 font-medium shrink-0">
                   {resolvedCount}/{markers.length} done
                 </span>
               )}
