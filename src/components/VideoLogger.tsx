@@ -165,7 +165,7 @@ const TimeInput = ({
 };
 
 // ─── ClipTitleInput: local state prevents cursor-jump on every keystroke ──────
-function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle, clipGroups, onAssignGroup, showGroupPicker, setShowGroupPicker }: {
+function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle, clipGroups, onAssignGroup, showGroupPicker, setShowGroupPicker, showingClipNote, onToggleClipNote }: {
   clip: Clip;
   onSave: (clip: Clip) => Promise<void>;
   onDelete: () => void;
@@ -175,6 +175,8 @@ function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle, clipGrou
   onAssignGroup: (clip: Clip, groupId: string | undefined) => Promise<void>;
   showGroupPicker: boolean;
   setShowGroupPicker: (show: boolean) => void;
+  showingClipNote?: boolean;
+  onToggleClipNote?: () => void;
 }) {
   const [localTitle, setLocalTitle] = useState(clip.title);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -256,6 +258,21 @@ function ClipTitleInput({ clip, onSave, onDelete, isExpanded, onToggle, clipGrou
               </div>
             )}
           </div>
+        )}
+        {onToggleClipNote && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleClipNote();
+            }}
+            className={`p-1.5 rounded-lg transition-colors shrink-0 ${clip.notes
+              ? 'text-purple-400 bg-purple-500/20 hover:bg-purple-500/30'
+              : 'text-white/30 hover:text-white/70 hover:bg-white/10'
+              }`}
+            title={clip.notes ? (showingClipNote ? 'Hide edit note' : 'Show edit note') : 'Add edit note'}
+          >
+            <NotebookPen className="w-4 h-4" />
+          </button>
         )}
         <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-white/20 hover:text-red-500 p-1">✕</button>
         <span className="text-white/40 text-xs w-4 text-center">{isExpanded ? '▲' : '▼'}</span>
@@ -738,7 +755,35 @@ export default function VideoLogger({
             onAssignGroup={assignClipToGroup}
             showGroupPicker={activeGroupPickerClipId === clip.id}
             setShowGroupPicker={(show) => setActiveGroupPickerClipId(show ? clip.id : null)}
+            showingClipNote={showingClipNote[clip.id]}
+            onToggleClipNote={() => {
+              if (clip.notes) {
+                setShowingClipNote(prev => ({ ...prev, [clip.id]: !prev[clip.id] }));
+              } else {
+                setShowingClipNote(prev => ({ ...prev, [clip.id]: true }));
+              }
+            }}
           />
+
+          {/* Clip note (editor note for this take) */}
+          {showingClipNote[clip.id] && (
+            <div className="px-4 pt-3 pb-1 border-b border-white/10 bg-purple-500/5">
+              <BufferedAutoGrowingTextarea
+                autoFocus={!clip.notes}
+                rows={1}
+                placeholder="Add editing notes for this take..."
+                className="w-full bg-transparent text-sm text-purple-200/90 outline-none placeholder:text-white/20 resize-none py-0"
+                value={clip.notes || ''}
+                onSave={(val) => {
+                  const updated = { ...clip, notes: val };
+                  saveClip(updated);
+                }}
+                onBlur={() => {
+                  if (!clip.notes) setShowingClipNote(prev => ({ ...prev, [clip.id]: false }));
+                }}
+              />
+            </div>
+          )}
 
           {expandedClips[clip.id] !== false && (
             <div className="p-4 space-y-4">

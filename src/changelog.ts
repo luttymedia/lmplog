@@ -6,6 +6,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.5.1',
+    date: '2026-08-06',
+    changes: [
+      'Session Mode: added per-clip editor notes sharing the same field as Review Mode'
+    ]
+  },
+  {
     version: '1.5.0',
     date: '2026-06-25',
     changes: [
