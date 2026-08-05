@@ -53,7 +53,7 @@ import { SessionInfoModal } from './components/SessionInfoModal';
 import { CustomSelect } from './components/CustomSelect';
 import { CustomCheckbox } from './components/CustomCheckbox';
 import { CustomSwitch } from './components/CustomSwitch';
-import { AutoGrowingTextarea } from './components/AutoGrowingTextarea';
+import { AutoGrowingTextarea, BufferedAutoGrowingTextarea } from './components/AutoGrowingTextarea';
 // Word export removed due to Google Docs converter compatibility issues
 
 
@@ -2074,7 +2074,7 @@ export default function App() {
                 type="text"
                 maxLength={6}
                 value={importCodeValue}
-                onChange={(e) => setImportCodeValue(e.target.value.toUpperCase().trim())}
+                onChange={(e) => setImportCodeValue(e.target.value.toUpperCase())}
                 placeholder={"E.g., A1B2C3"}
                 className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-center text-lg font-mono font-bold tracking-widest text-white outline-none focus:border-brand transition-colors"
                 autoFocus
@@ -3027,9 +3027,9 @@ function SessionDetail({
             )}
             <div className="bg-[#1a1a1d] border border-white/10 rounded-xl p-4 shadow-sm">
               <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Review Notes</h4>
-              <AutoGrowingTextarea
+              <BufferedAutoGrowingTextarea
                 value={session.reviewNotes || ''}
-                onChange={(e) => onUpdateSession({ reviewNotes: e.target.value })}
+                onSave={(val) => onUpdateSession({ reviewNotes: val })}
                 placeholder="Add your review notes here..."
                 className="w-full bg-transparent border-none focus:outline-none text-sm text-white placeholder-white/20 min-h-[60px]"
               />

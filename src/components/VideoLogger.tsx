@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Session, Clip, Marker, SessionMedia, ClipGroup } from '../types';
 import { db } from '../lib/db';
-import { AutoGrowingTextarea } from './AutoGrowingTextarea';
+import { AutoGrowingTextarea, BufferedAutoGrowingTextarea } from './AutoGrowingTextarea';
 import { CustomSelect } from './CustomSelect';
 import { Trash2, MessageSquarePlus, ChevronsUpDown, ChevronsDownUp, NotebookPen, Plus, RotateCcw, FolderPlus, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import {
@@ -863,13 +863,13 @@ export default function VideoLogger({
                         </div>
 
                         {showNote && (
-                          <AutoGrowingTextarea
+                          <BufferedAutoGrowingTextarea
                             autoFocus={showingNoteInput[marker.id] && !marker.content}
                             rows={1}
                             placeholder="Add details..."
                             className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-brand/50 transition-colors resize-none"
-                            value={marker.content}
-                            onChange={(e) => updateMarker(clip.id, marker.id, { content: e.target.value })}
+                            value={marker.content || ''}
+                            onSave={(val) => updateMarker(clip.id, marker.id, { content: val })}
                             onBlur={() => {
                               if (!marker.content) setShowingNoteInput(prev => ({ ...prev, [marker.id]: false }));
                             }}
@@ -1040,14 +1040,14 @@ export default function VideoLogger({
         {/* Clip note (editor note for this take) */}
         {showingClipNote[clip.id] && (
           <div className="px-4 pt-3 pb-1 border-b border-white/10 bg-purple-500/5">
-            <AutoGrowingTextarea
+            <BufferedAutoGrowingTextarea
               autoFocus={!clip.notes}
               rows={1}
               placeholder="Add editing notes for this take..."
               className="w-full bg-transparent text-sm text-purple-200/90 outline-none placeholder:text-white/20 resize-none py-0"
               value={clip.notes || ''}
-              onChange={(e) => {
-                const updated = { ...clip, notes: e.target.value };
+              onSave={(val) => {
+                const updated = { ...clip, notes: val };
                 saveClip(updated);
               }}
               onBlur={() => {

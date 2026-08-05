@@ -44,6 +44,11 @@ input::placeholder {
   @apply text-white/30;
 }
 
+textarea.resize-none {
+  field-sizing: content;
+}
+
+
 @keyframes wiggle {
   0%, 100% { transform: rotate(-1.5deg); }
   50% { transform: rotate(1.5deg); }

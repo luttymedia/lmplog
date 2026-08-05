@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Session } from '../types';
-import { AutoGrowingTextarea } from './AutoGrowingTextarea';
+import { AutoGrowingTextarea, BufferedAutoGrowingTextarea } from './AutoGrowingTextarea';
 import { Save, FolderOpen, Check, Trash2 } from 'lucide-react';
 
 interface SessionInfoModalProps {
@@ -167,9 +167,9 @@ export function SessionInfoModal({ initialData, onConfirm, onCancel, isNew = fal
 
           <div>
             <label className="block text-xs font-medium text-white/60 mb-1">General Notes</label>
-            <AutoGrowingTextarea
+            <BufferedAutoGrowingTextarea
               value={data.generalNotes || ''}
-              onChange={(e) => handleChange({ generalNotes: e.target.value })}
+              onSave={(val) => handleChange({ generalNotes: val })}
               placeholder="Lighting notes, choreo details..."
               className="w-full px-3 py-2.5 bg-white/5 rounded-xl text-sm border border-transparent focus:border-brand/50 outline-none min-h-[80px] text-white placeholder-white/20 transition-colors"
             />
