@@ -6,6 +6,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.5.2',
+    date: '2026-08-06',
+    changes: [
+      'Review Mode: enabled text selection and copying for clip titles and clip group titles'
+    ]
+  },
+  {
     version: '1.5.1',
     date: '2026-08-06',
     changes: [
