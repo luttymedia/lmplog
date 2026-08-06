@@ -6,6 +6,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '1.5.3',
+    date: '2026-08-06',
+    changes: [
+      'Fixed clip and session group persistence when unassigning groups/folders so clips stay in "No group" across cloud syncs and sessions'
+    ]
+  },
+  {
     version: '1.5.2',
     date: '2026-08-06',
     changes: [

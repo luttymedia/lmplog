@@ -49,8 +49,14 @@ export const syncEngine = {
            // dbData.filename = path; // keep original filename, but know that cloud has it. Or maybe add a remotePath.
         }
 
+        // Explicitly convert undefined values to null so JSON.stringify doesn't omit cleared columns (e.g. groupId)
+        const dbDataWithNulls: Record<string, any> = {};
+        for (const [key, value] of Object.entries(dbData)) {
+          dbDataWithNulls[key] = value === undefined ? null : value;
+        }
+
         const payload = {
-          ...dbData,
+          ...dbDataWithNulls,
           user_id: userId,
           updated_at: new Date().toISOString()
         };
@@ -136,10 +142,11 @@ export const syncEngine = {
     for (const table of TABLES) {
       const allLocal = await db.readAllFromDbRaw<any>(table, true);
       for (const item of allLocal) {
-        const payload = { ...item };
-        delete payload.pending_sync;
-        delete payload.fileHandle;
-        delete payload.blob;
+        const payload: Record<string, any> = {};
+        for (const [key, value] of Object.entries(item)) {
+          if (key === 'pending_sync' || key === 'fileHandle' || key === 'blob') continue;
+          payload[key] = value === undefined ? null : value;
+        }
         payload.user_id = userId;
         payload.updated_at = new Date().toISOString();
 
